@@ -10,12 +10,35 @@ encouragement, gentle gamification, and a daily Bible verse.
 
 ```bash
 npm install
+cp .env.example .env   # optional — enables multi-device sync (see below)
 npm run dev      # http://localhost:5173
 npm run build    # production build → dist/
 npm run preview  # preview the production build
 ```
 
 The app pre-loads a **demo family** on first launch so every page has data.
+
+## Multi-device sync (Supabase)
+
+GoodSeed works fully offline on `localStorage`. If you set `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` in `.env`, it additionally syncs each family's data across
+devices in real time:
+
+- **Local-first mirror.** The in-memory store stays the synchronous source of truth
+  for the UI; a sync layer (`src/lib/sync.js`) loads the family's rows on login,
+  pushes every local write to Supabase, and applies realtime changes from other
+  devices back into the store. No component or domain code is async.
+- **Storage model.** A single `records` table `(id, family_id, collection, data
+  jsonb, updated_at)` mirrors the client's collection store one-to-one, with
+  Supabase Realtime enabled.
+- **Joining across devices.** A child entering an invite code is looked up against
+  the cloud, so they can join a family created on another device.
+- **The demo family is local-only** (never synced).
+
+**Security note:** access is *capability-based* — knowing a family's unguessable id
+grants access to its rows (matching the app's existing password-less invite model).
+The RLS write policies are intentionally permissive for this MVP. **Before a public
+launch, harden with Supabase Auth + membership-scoped policies.**
 
 - **Parent:** choose “I'm a Parent” to create a new family, or open the app and
   it logs you into the demo parent.

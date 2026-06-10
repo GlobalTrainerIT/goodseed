@@ -5,6 +5,7 @@ import { Card, Button, Input, Label } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import { getAll, create } from '@/lib/db'
 import { login } from '@/lib/auth'
+import { findFamilyByInviteCode, loadFamilyData } from '@/lib/sync'
 import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
 import { updateSettings } from '@/lib/db'
@@ -23,6 +24,7 @@ export default function Welcome() {
   // child fields
   const [code, setCode] = useState('')
   const [matchedFamily, setMatchedFamily] = useState(null)
+  const [looking, setLooking] = useState(false)
 
   useEffect(() => {
     const join = params.get('join')
@@ -73,12 +75,25 @@ export default function Welcome() {
     navigate('/Onboarding', { state: { familyId: family.id } })
   }
 
-  function handleFindFamily(e) {
+  async function handleFindFamily(e) {
     e.preventDefault()
     setError('')
-    const family = getAll('families').find(
-      (f) => f.invite_code.toUpperCase() === code.trim().toUpperCase()
-    )
+    const wanted = code.trim().toUpperCase()
+    // Local first (same device / demo family), then the cloud (other devices).
+    let family = getAll('families').find((f) => f.invite_code.toUpperCase() === wanted)
+    if (!family) {
+      setLooking(true)
+      try {
+        const remote = await findFamilyByInviteCode(wanted)
+        if (remote) {
+          await loadFamilyData(remote.id)
+          family = remote
+        }
+      } catch {
+        /* fall through to error */
+      }
+      setLooking(false)
+    }
     if (!family) {
       setError('No family found with that code. Double-check and try again.')
       return
@@ -174,8 +189,8 @@ export default function Welcome() {
               />
               <p className="mt-1.5 text-xs text-gray-400">Tip: try the demo family code <b>DEMO01</b></p>
             </div>
-            <Button type="submit" className="w-full">
-              Find My Family <ArrowRight className="h-4 w-4" />
+            <Button type="submit" className="w-full" disabled={looking}>
+              {looking ? 'Looking…' : <>Find My Family <ArrowRight className="h-4 w-4" /></>}
             </Button>
             <button type="button" onClick={() => setMode('choose')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
               <ArrowLeft className="h-4 w-4" /> Back

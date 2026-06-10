@@ -96,6 +96,12 @@ function notify() {
   listeners.forEach((l) => l())
 }
 
+// ---- sync handlers (registered by sync.js; no-ops without a backend) ----
+let syncHandlers = {}
+export function registerSyncHandlers(handlers) {
+  syncHandlers = handlers || {}
+}
+
 // ---- generic CRUD ----
 export function getAll(collection) {
   return state[collection] || []
@@ -118,6 +124,7 @@ export function create(collection, data) {
   state[collection] = [...(state[collection] || []), record]
   writeStorage(collection, state[collection])
   notify()
+  syncHandlers.onUpsert?.(collection, record)
   return record
 }
 
@@ -132,6 +139,7 @@ export function update(collection, id, patch) {
   })
   writeStorage(collection, state[collection])
   notify()
+  if (updated) syncHandlers.onUpsert?.(collection, updated)
   return updated
 }
 
@@ -139,6 +147,7 @@ export function remove(collection, id) {
   state[collection] = (state[collection] || []).filter((r) => r.id !== id)
   writeStorage(collection, state[collection])
   notify()
+  syncHandlers.onDelete?.(collection, id)
 }
 
 // ---- settings (singleton object) ----
@@ -149,7 +158,61 @@ export function updateSettings(patch) {
   state.settings = { ...state.settings, ...patch }
   writeStorage('settings', state.settings)
   notify()
+  syncHandlers.onSettings?.(state.settings)
   return state.settings
+}
+
+// ---- apply changes coming FROM the remote (never re-pushed) ----
+export function applyRemoteUpsert(collection, data) {
+  if (!data) return
+  if (collection === 'settings') {
+    state.settings = data
+    writeStorage('settings', state.settings)
+  } else {
+    const arr = state[collection] || []
+    const idx = arr.findIndex((r) => r.id === data.id)
+    if (idx >= 0) {
+      const copy = arr.slice()
+      copy[idx] = data
+      state[collection] = copy
+    } else {
+      state[collection] = [...arr, data]
+    }
+    writeStorage(collection, state[collection])
+  }
+  notify()
+}
+
+export function applyRemoteDeleteById(id) {
+  if (!id) return
+  let changed = false
+  COLLECTIONS.forEach((name) => {
+    const arr = state[name] || []
+    if (arr.some((r) => r.id === id)) {
+      state[name] = arr.filter((r) => r.id !== id)
+      writeStorage(name, state[name])
+      changed = true
+    }
+  })
+  if (changed) notify()
+}
+
+/** Apply a batch of remote rows (initial load) with a single notify. */
+export function bulkApplyRemote(rows) {
+  rows.forEach((row) => {
+    if (row.collection === 'settings') {
+      state.settings = row.data
+      return
+    }
+    const arr = state[row.collection] || []
+    const idx = arr.findIndex((r) => r.id === row.data.id)
+    if (idx >= 0) arr[idx] = row.data
+    else arr.push(row.data)
+    state[row.collection] = arr
+  })
+  COLLECTIONS.forEach((name) => writeStorage(name, state[name]))
+  writeStorage('settings', state.settings)
+  notify()
 }
 
 // ---- danger / utility ----

@@ -6,6 +6,7 @@ import Toaster from '@/components/shared/Toaster'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import { useCurrentUser } from '@/lib/hooks'
 import { runDailyMaintenance } from '@/lib/domain'
+import { initSync, teardownSync } from '@/lib/sync'
 
 // Route-level code splitting keeps the initial bundle small; heavy pages
 // (Reports → recharts, jsPDF) only load when visited.
@@ -45,14 +46,26 @@ function Page({ label, children }) {
 export default function App() {
   const user = useCurrentUser()
 
-  // Run once-per-day maintenance (recurring rollover, streak savers,
-  // weekly leaderboard snapshot) whenever a family is active.
+  // Start multi-device sync for the active family (no-op without a backend or
+  // for the local-only demo family), then run once-per-day maintenance
+  // (recurring rollover, streak savers, weekly leaderboard snapshot).
   useEffect(() => {
-    try {
-      if (user?.family_id) runDailyMaintenance(user.family_id)
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[App maintenance]', e)
+    let cancelled = false
+    ;(async () => {
+      try {
+        if (user?.family_id) {
+          await initSync(user.family_id)
+          if (!cancelled) runDailyMaintenance(user.family_id)
+        } else {
+          await teardownSync()
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[App sync/maintenance]', e)
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [user?.family_id])
 
