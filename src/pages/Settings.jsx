@@ -1,0 +1,247 @@
+import { useNavigate } from 'react-router-dom'
+import { LogOut, Trash2, Moon, Sun, Pencil, Lock } from 'lucide-react'
+import PageHeader from '@/components/shared/PageHeader'
+import { Card, Button, Toggle, Select, Label, Dialog, Input } from '@/components/ui'
+import { lock } from '@/lib/pinLock'
+import Avatar from '@/components/shared/Avatar'
+import { useCurrentUser, useSettings, useCollection } from '@/lib/hooks'
+import { updateSettings, remove, resetAll } from '@/lib/db'
+import { buyStreakSaver } from '@/lib/domain'
+import { logout } from '@/lib/auth'
+import { useTheme, toggleTheme } from '@/lib/theme'
+import { SEED_NAME_OPTIONS } from '@/lib/constants'
+import { useState } from 'react'
+import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog'
+import BadgeGrid from '@/components/gamification/BadgeGrid'
+import LevelProgress from '@/components/gamification/LevelProgress'
+import StreakDisplay from '@/components/gamification/StreakDisplay'
+
+function Row({ title, desc, children }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{title}</p>
+        {desc && <p className="text-xs text-gray-400">{desc}</p>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+export default function Settings() {
+  const user = useCurrentUser()
+  const settings = useSettings()
+  const theme = useTheme()
+  const navigate = useNavigate()
+  const badges = useCollection('badges')
+  const [delOpen, setDelOpen] = useState(false)
+
+  if (!user) return null
+  const isParent = user.role === 'parent'
+  const prefs = settings.notificationPrefs || {}
+  const myBadges = badges.filter((b) => b.user_id === user.id)
+  const [pinDialog, setPinDialog] = useState(false)
+
+  function setPref(key, val) {
+    updateSettings({ notificationPrefs: { ...prefs, [key]: val } })
+  }
+
+  function togglePin(on) {
+    if (on) {
+      setPinDialog(true)
+    } else {
+      updateSettings({ parentPinEnabled: false, parentPin: '' })
+    }
+  }
+
+  function handleSignOut() {
+    logout()
+    navigate('/Welcome')
+  }
+  function handleDeleteAccount() {
+    if (isParent) {
+      resetAll()
+      logout()
+      navigate('/Welcome')
+    } else {
+      remove('users', user.id)
+      logout()
+      navigate('/Welcome')
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <PageHeader title={isParent ? 'Settings' : 'My Profile'} subtitle="Manage your profile and preferences" />
+
+      {/* Profile */}
+      <Card className="mb-5 p-5">
+        <div className="flex items-center gap-4">
+          <Avatar user={user} size="lg" />
+          <div className="flex-1">
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{user.full_name}</p>
+            <p className="text-sm text-gray-400">{user.email || (user.role === 'child' ? `Age ${user.age ?? '—'}` : '')} · <span className="capitalize">{user.role}</span></p>
+          </div>
+          <Button variant="secondary" onClick={() => navigate('/ProfileSetup')}><Pencil className="h-4 w-4" /> Edit</Button>
+        </div>
+        {!isParent && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg bg-seed-50 p-3 text-center dark:bg-seed-900/20">
+              <p className="text-xl font-extrabold text-seed-700 dark:text-seed-300">🌱 {user.seed_balance || 0}</p>
+              <p className="text-xs text-gray-400">Balance</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><StreakDisplay current={user.streak_current || 0} longest={user.streak_longest || 0} /></div>
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"><LevelProgress xp={user.xp || 0} /></div>
+          </div>
+        )}
+        {!isParent && settings.allowStreakSavers && (
+          <div className="mt-3 flex items-center justify-between rounded-lg bg-orange-50 p-3 dark:bg-orange-900/10">
+            <div>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">🛡️ Streak Savers: {user.streak_savers_available || 0}</p>
+              <p className="text-xs text-gray-400">Protects your streak if you miss a day.</p>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => buyStreakSaver(user.id)}>Buy for 5 🌱</Button>
+          </div>
+        )}
+      </Card>
+
+      {!isParent && (
+        <Card className="mb-5 p-5">
+          <h3 className="mb-3 font-bold text-gray-900 dark:text-gray-100">🏅 My Badges</h3>
+          <BadgeGrid earnedBadges={myBadges} />
+        </Card>
+      )}
+
+      {/* Appearance */}
+      <Card className="mb-5 p-5">
+        <h3 className="mb-1 font-bold text-gray-900 dark:text-gray-100">Appearance</h3>
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <Row title="Dark mode" desc="Switch between light and dark themes.">
+            <button onClick={toggleTheme} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-sm dark:border-gray-700">
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+          </Row>
+        </div>
+      </Card>
+
+      {isParent && (
+        <>
+          {/* Gamification */}
+          <Card className="mb-5 p-5">
+            <h3 className="mb-1 font-bold text-gray-900 dark:text-gray-100">Gamification</h3>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <Row title="Allow Streak Savers" desc="Children earn 1 saver per week; it auto-protects a missed day.">
+                <Toggle checked={settings.allowStreakSavers} onChange={(v) => updateSettings({ allowStreakSavers: v })} />
+              </Row>
+              <Row title="Enable Seed Packs" desc="Children earn packs every 10 tasks or at streak milestones.">
+                <Toggle checked={settings.enableSeedPacks} onChange={(v) => updateSettings({ enableSeedPacks: v })} />
+              </Row>
+              <Row title="Currency name" desc="Rename your family currency.">
+                <Select
+                  className="w-36"
+                  value={settings.seedName}
+                  onChange={(e) => updateSettings({ seedName: e.target.value, seedNameSingular: e.target.value.replace(/s$/, '') })}
+                >
+                  {SEED_NAME_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                </Select>
+              </Row>
+              <Row title="Parent PIN lock" desc="Require a 4-digit PIN to open parent pages (shared device).">
+                <div className="flex items-center gap-2">
+                  {settings.parentPinEnabled && settings.parentPin && (
+                    <Button size="sm" variant="outline" onClick={lock}><Lock className="h-3.5 w-3.5" /> Lock now</Button>
+                  )}
+                  <Toggle checked={settings.parentPinEnabled} onChange={togglePin} />
+                </div>
+              </Row>
+            </div>
+          </Card>
+
+          {/* Notification preferences */}
+          <Card className="mb-5 p-5">
+            <h3 className="mb-2 font-bold text-gray-900 dark:text-gray-100">Notification Preferences</h3>
+            <p className="mb-1 text-xs font-bold uppercase text-gray-400">Tasks</p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <Row title="New task assigned"><Toggle checked={prefs.newTaskAssigned} onChange={(v) => setPref('newTaskAssigned', v)} /></Row>
+              <Row title="Task reminders"><Toggle checked={prefs.taskReminders} onChange={(v) => setPref('taskReminders', v)} /></Row>
+              <Row title="Due date alerts"><Toggle checked={prefs.dueDateAlerts} onChange={(v) => setPref('dueDateAlerts', v)} /></Row>
+            </div>
+            <p className="mb-1 mt-3 text-xs font-bold uppercase text-gray-400">Rewards</p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <Row title="Redemption requests"><Toggle checked={prefs.redemptionRequests} onChange={(v) => setPref('redemptionRequests', v)} /></Row>
+              <Row title="Reward approved"><Toggle checked={prefs.rewardApproved} onChange={(v) => setPref('rewardApproved', v)} /></Row>
+            </div>
+            <p className="mb-1 mt-3 text-xs font-bold uppercase text-gray-400">Family</p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <Row title="New announcements"><Toggle checked={prefs.newAnnouncements} onChange={(v) => setPref('newAnnouncements', v)} /></Row>
+              <Row title="Goal updates"><Toggle checked={prefs.goalUpdates} onChange={(v) => setPref('goalUpdates', v)} /></Row>
+              <Row title="Weekly Boss updates"><Toggle checked={prefs.weeklyBossUpdates} onChange={(v) => setPref('weeklyBossUpdates', v)} /></Row>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* Danger zone */}
+      <Card className="border-red-200 p-5 dark:border-red-900/50">
+        <h3 className="mb-3 font-bold text-red-600">Danger Zone</h3>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleSignOut}><LogOut className="h-4 w-4" /> Sign Out</Button>
+          <Button variant="danger" onClick={() => setDelOpen(true)}><Trash2 className="h-4 w-4" /> Delete Account</Button>
+        </div>
+      </Card>
+
+      <DeleteConfirmDialog
+        open={delOpen}
+        onClose={() => setDelOpen(false)}
+        itemName="your account"
+        message={isParent ? 'This deletes the entire family and all data.' : 'This removes your child profile.'}
+        onConfirm={handleDeleteAccount}
+      />
+
+      <SetPinDialog open={pinDialog} onClose={() => setPinDialog(false)} />
+    </div>
+  )
+}
+
+function SetPinDialog({ open, onClose }) {
+  const [pin, setPin] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState('')
+
+  function onlyDigits(v) {
+    return v.replace(/\D/g, '').slice(0, 4)
+  }
+  function save() {
+    if (pin.length !== 4) return setError('PIN must be 4 digits.')
+    if (pin !== confirm) return setError('PINs do not match.')
+    updateSettings({ parentPinEnabled: true, parentPin: pin })
+    setPin(''); setConfirm(''); setError('')
+    onClose()
+  }
+  function cancel() {
+    setPin(''); setConfirm(''); setError('')
+    onClose()
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={cancel}
+      title="Set a Parent PIN"
+      description="You'll enter this 4-digit PIN to open parent pages on a shared device."
+      footer={<><Button variant="outline" onClick={cancel}>Cancel</Button><Button onClick={save}>Set PIN</Button></>}
+    >
+      {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30">{error}</p>}
+      <div className="space-y-4">
+        <div>
+          <Label>New PIN</Label>
+          <Input inputMode="numeric" type="password" value={pin} onChange={(e) => setPin(onlyDigits(e.target.value))} placeholder="••••" className="text-center text-2xl tracking-[0.5em]" autoFocus />
+        </div>
+        <div>
+          <Label>Confirm PIN</Label>
+          <Input inputMode="numeric" type="password" value={confirm} onChange={(e) => setConfirm(onlyDigits(e.target.value))} placeholder="••••" className="text-center text-2xl tracking-[0.5em]" />
+        </div>
+      </div>
+    </Dialog>
+  )
+}
