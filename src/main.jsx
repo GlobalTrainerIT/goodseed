@@ -34,3 +34,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </ErrorBoundary>
   </React.StrictMode>
 )
+
+// Register the service worker for offline / installable PWA (production only,
+// so it never interferes with the Vite dev HMR server).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('SW registration failed', err)
+    })
+  })
+}

@@ -20,10 +20,10 @@ export default function RewardCard({ reward, onEdit, onDelete }) {
             {reward.description && <p className="mt-0.5 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{reward.description}</p>}
           </div>
           <div className="flex flex-shrink-0 gap-1">
-            <button onClick={() => onEdit(reward)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-gray-800">
+            <button aria-label={`Edit ${reward.title}`} onClick={() => onEdit(reward)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-gray-800">
               <Pencil className="h-4 w-4" />
             </button>
-            <button onClick={() => onDelete(reward)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
+            <button aria-label={`Delete ${reward.title}`} onClick={() => onDelete(reward)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>

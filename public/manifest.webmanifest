@@ -1,0 +1,20 @@
+{
+  "name": "GoodSeed · Family Rewards",
+  "short_name": "GoodSeed",
+  "description": "A faith-based family chore & rewards app. Plant good seeds, watch your family grow.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0fdf4",
+  "theme_color": "#16a34a",
+  "categories": ["lifestyle", "productivity", "education"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

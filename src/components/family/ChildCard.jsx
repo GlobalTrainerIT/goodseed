@@ -18,7 +18,7 @@ export default function ChildCard({ child, onAward, onDeduct, onDelete }) {
             View Profile <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </div>
-        <button onClick={() => onDelete(child)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
+        <button aria-label={`Remove ${child.full_name}`} onClick={() => onDelete(child)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>

@@ -153,6 +153,35 @@ export function updateSettings(patch) {
 }
 
 // ---- danger / utility ----
+/** Serialize the entire family dataset for backup/export. */
+export function exportData() {
+  const data = { __goodseed__: true, version: STORAGE_VERSION, exported_at: new Date().toISOString(), settings: state.settings }
+  COLLECTIONS.forEach((name) => {
+    data[name] = state[name] || []
+  })
+  return data
+}
+
+/** Restore a dataset previously produced by exportData(). Returns true on success. */
+export function importData(data) {
+  if (!data || data.__goodseed__ !== true) return false
+  COLLECTIONS.forEach((name) => {
+    state[name] = Array.isArray(data[name]) ? data[name] : []
+    writeStorage(name, state[name])
+  })
+  if (data.settings) {
+    state.settings = data.settings
+    writeStorage('settings', state.settings)
+  }
+  try {
+    localStorage.setItem(STORAGE_VERSION, 'true')
+  } catch {
+    /* ignore */
+  }
+  notify()
+  return true
+}
+
 export function resetAll() {
   try {
     Object.keys(localStorage)

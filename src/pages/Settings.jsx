@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Trash2, Moon, Sun, Pencil, Lock } from 'lucide-react'
+import { LogOut, Trash2, Moon, Sun, Pencil, Lock, Download, Upload } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import { Card, Button, Toggle, Select, Label, Dialog, Input } from '@/components/ui'
 import { lock } from '@/lib/pinLock'
+import { exportData, importData } from '@/lib/db'
+import { toast } from '@/lib/toast'
+import { useRef } from 'react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useSettings, useCollection } from '@/lib/hooks'
 import { updateSettings, remove, resetAll } from '@/lib/db'
@@ -41,6 +44,35 @@ export default function Settings() {
   const prefs = settings.notificationPrefs || {}
   const myBadges = badges.filter((b) => b.user_id === user.id)
   const [pinDialog, setPinDialog] = useState(false)
+  const importRef = useRef(null)
+
+  function handleExport() {
+    const blob = new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `goodseed-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast({ title: 'Backup downloaded!', emoji: '💾' })
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const data = JSON.parse(await file.text())
+      if (importData(data)) {
+        toast({ title: 'Backup restored!', message: 'Reloading…', emoji: '✅' })
+        setTimeout(() => window.location.reload(), 800)
+      } else {
+        toast({ title: 'Invalid backup file', type: 'error' })
+      }
+    } catch {
+      toast({ title: 'Could not read that file', type: 'error' })
+    }
+    e.target.value = ''
+  }
 
   function setPref(key, val) {
     updateSettings({ notificationPrefs: { ...prefs, [key]: val } })
@@ -179,6 +211,21 @@ export default function Settings() {
             </div>
           </Card>
         </>
+      )}
+
+      {/* Data & backup (parent only — family-wide data) */}
+      {isParent && (
+        <Card className="mb-5 p-5">
+          <h3 className="mb-1 font-bold text-gray-900 dark:text-gray-100">Data & Backup</h3>
+          <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+            Your family data lives on this device. Export a backup so you can restore it later or move to another device.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={handleExport}><Download className="h-4 w-4" /> Export backup</Button>
+            <Button variant="secondary" onClick={() => importRef.current?.click()}><Upload className="h-4 w-4" /> Import backup</Button>
+            <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImport} />
+          </div>
+        </Card>
       )}
 
       {/* Danger zone */}

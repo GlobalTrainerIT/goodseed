@@ -30,10 +30,10 @@ export default function TaskCard({ task, onEdit, onDelete, onOpen }) {
               {task.description && <p className="mt-0.5 line-clamp-1 text-sm text-gray-500 dark:text-gray-400">{task.description}</p>}
             </div>
             <div className="flex flex-shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => onEdit(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-seed-600 dark:hover:bg-gray-800">
+              <button aria-label={`Edit ${task.title}`} onClick={() => onEdit(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-seed-600 dark:hover:bg-gray-800">
                 <Pencil className="h-4 w-4" />
               </button>
-              <button onClick={() => onDelete(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
+              <button aria-label={`Delete ${task.title}`} onClick={() => onDelete(task)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
