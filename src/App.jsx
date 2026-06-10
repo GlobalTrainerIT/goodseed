@@ -30,6 +30,13 @@ function RequireAuth({ children }) {
   return children
 }
 
+/** Parent-only pages (child management, reports) — children are redirected home. */
+function RequireParent({ children }) {
+  const user = useCurrentUser()
+  if (user && user.role !== 'parent') return <Navigate to="/Dashboard" replace />
+  return children
+}
+
 /** Wrap a page in its own error boundary so a single page crash can't blank the app. */
 function Page({ label, children }) {
   return <ErrorBoundary label={label}>{children}</ErrorBoundary>
@@ -67,8 +74,8 @@ export default function App() {
             <Route path="/Tasks" element={<Tasks />} />
             <Route path="/Rewards" element={<Rewards />} />
             <Route path="/Missions" element={<Missions />} />
-            <Route path="/Family" element={<Family />} />
-            <Route path="/Reports" element={<Reports />} />
+            <Route path="/Family" element={<RequireParent><Family /></RequireParent>} />
+            <Route path="/Reports" element={<RequireParent><Reports /></RequireParent>} />
             <Route path="/TradingPost" element={<TradingPost />} />
             <Route path="/Settings" element={<Settings />} />
             <Route path="/ProfileSetup" element={<ProfileSetup />} />
