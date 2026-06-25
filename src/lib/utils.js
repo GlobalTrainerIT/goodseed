@@ -88,6 +88,11 @@ export function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
 }
 
+/** "1 child" / "2 children" — correct singular/plural with a count. */
+export function plural(n, singular, pluralForm) {
+  return `${n} ${n === 1 ? singular : pluralForm || `${singular}s`}`
+}
+
 /**
  * Read an image File and return a downscaled JPEG data URL (keeps localStorage
  * small). Resolves to null on failure.

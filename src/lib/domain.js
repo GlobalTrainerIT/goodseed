@@ -75,7 +75,9 @@ export function awardSeeds(childId, amount, reason, byUserId) {
     total_seeds_earned: (c.total_seeds_earned || 0) + amount,
   }))
   addActivity(child.family_id, childId, 'seeds_awarded', `${child.full_name} earned ${amount} ${seedWord(amount)}${reason ? ` — ${reason}` : ''}`, amount)
-  addXp(childId, amount * 5)
+  // Seeds contribute a little XP; tasks (10 XP each) remain the main driver so
+  // progression isn't trivially fast (a one-off 50-seed award won't leap levels).
+  addXp(childId, amount * 2)
   notify(childId, 'family', `+${amount} ${seedWord(amount)} 🌱`, reason || 'Seeds awarded!', null)
   checkBadges(childId)
 }

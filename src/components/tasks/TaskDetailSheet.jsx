@@ -5,7 +5,7 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import PhotoProof from '@/components/shared/PhotoProof'
 import { TASK_CATEGORIES } from '@/lib/constants'
 import { getAll } from '@/lib/db'
-import { taskAppliesTo, latestCompletion, approveCompletion, rejectCompletion } from '@/lib/domain'
+import { taskAppliesTo, latestCompletion, approveCompletion, rejectCompletion, completeTask } from '@/lib/domain'
 import { isOverdue, formatDate, dueLabel } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/hooks'
 import { Check, X } from 'lucide-react'
@@ -79,6 +79,11 @@ export default function TaskDetailSheet({ task, open, onClose }) {
                     <X className="h-4 w-4" /> Reject
                   </Button>
                 </div>
+              )}
+              {(status === 'todo' || status === 'overdue' || status === 'rejected') && user?.role === 'parent' && (
+                <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => completeTask(task.id, c.id)}>
+                  <Check className="h-4 w-4" /> Mark done{task.requires_approval ? ' (needs approval)' : ''}
+                </Button>
               )}
             </div>
           )

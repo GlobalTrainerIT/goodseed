@@ -37,6 +37,7 @@ export default function Reports() {
   const completions = useCollection('completions')
   const users = useCollection('users')
   const goals = useCollection('goals')
+  const activity = useCollection('activity')
   const [period, setPeriod] = useState('this_week')
   const [tableTab, setTableTab] = useState('children')
   const reportRef = useRef(null)
@@ -50,16 +51,30 @@ export default function Reports() {
     return d && isWithinInterval(d, { start, end })
   })
 
+  // Every seed gain in the period — task rewards, manual awards, bonuses — lands
+  // in the activity log with a positive seeds_delta (regardless of action_type).
+  const seedEventsInRange = activity.filter((a) => {
+    if (a.family_id !== user?.family_id || !(a.seeds_delta > 0)) return false
+    const d = safeParseDate(a.timestamp)
+    return d && isWithinInterval(d, { start, end })
+  })
+
   const tasksCompleted = approvedInRange.length
-  const seedsEarned = approvedInRange.reduce((sum, c) => sum + (c.seeds_awarded || 0), 0)
-  const activeChildren = new Set(approvedInRange.map((c) => c.child_id)).size
+  // Seeds earned = everything from the activity log, so manual awards count too.
+  const seedsEarned = seedEventsInRange.reduce((sum, a) => sum + (a.seeds_delta || 0), 0)
+  // A child is "active" if they completed a task OR earned seeds in the period.
+  const activeIds = new Set([
+    ...approvedInRange.map((c) => c.child_id),
+    ...seedEventsInRange.map((a) => a.user_id),
+  ])
+  const activeChildren = children.filter((c) => activeIds.has(c.id)).length
   const activeGoals = goals.filter((g) => g.family_id === user?.family_id && g.status !== 'completed').length
 
-  // contributions per child
+  // contributions per child — seeds earned (includes manual awards)
   const contributions = children.map((c, i) => ({
     name: c.full_name,
     tasks: approvedInRange.filter((a) => a.child_id === c.id).length,
-    seeds: approvedInRange.filter((a) => a.child_id === c.id).reduce((s, a) => s + (a.seeds_awarded || 0), 0),
+    seeds: seedEventsInRange.filter((a) => a.user_id === c.id).reduce((s, a) => s + (a.seeds_delta || 0), 0),
     color: CHILD_COLORS[i % CHILD_COLORS.length],
   }))
 
@@ -70,23 +85,34 @@ export default function Reports() {
     color: cat.color,
   })).filter((d) => d.count > 0)
 
-  // timeline
+  // timeline — seeds earned per day (tasks + awards)
   const days = eachDayOfInterval({ start, end }).slice(-31)
   const timeline = days.map((day) => ({
     date: format(day, 'MMM d'),
-    count: approvedInRange.filter((a) => isSameDay(safeParseDate(a.approved_date || a.submitted_date), day)).length,
+    count: seedEventsInRange
+      .filter((a) => isSameDay(safeParseDate(a.timestamp), day))
+      .reduce((s, a) => s + (a.seeds_delta || 0), 0),
   }))
 
   function exportCSV() {
-    const rows = [['Child', 'Date', 'Task', 'Category', 'Seeds', 'Status']]
-    approvedInRange.forEach((c) => {
-      const child = getById('users', c.child_id)
-      const task = getById('tasks', c.task_id)
-      rows.push([
-        child?.full_name || '', formatDate(c.approved_date || c.submitted_date),
-        task?.title || '', task?.category || '', c.seeds_awarded || 0, c.status,
-      ])
-    })
+    // Single seed ledger from the activity log — task rewards, manual awards,
+    // bonuses and deductions, each once (no double-counting).
+    const rows = [['Child', 'Date', 'Type', 'Detail', 'Seeds']]
+    activity
+      .filter((a) => {
+        if (a.family_id !== user?.family_id || !a.seeds_delta) return false
+        const d = safeParseDate(a.timestamp)
+        return d && isWithinInterval(d, { start, end })
+      })
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .forEach((a) => {
+        const child = getById('users', a.user_id)
+        rows.push([
+          child?.full_name || '', formatDate(a.timestamp),
+          a.seeds_delta > 0 ? 'Earned' : 'Spent',
+          a.description || '', a.seeds_delta || 0,
+        ])
+      })
     const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     downloadBlob(new Blob([csv], { type: 'text/csv' }), `goodseed-report-${period}.csv`)
     toast({ title: 'CSV exported!', emoji: '📄' })
@@ -143,15 +169,15 @@ export default function Reports() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
-          <ChartCard title="Individual Contributions">
-            {contributions.some((c) => c.tasks > 0) ? (
+          <ChartCard title="Individual Contributions (seeds)">
+            {contributions.some((c) => c.seeds > 0) ? (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={contributions}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                   <Tooltip />
-                  <Bar dataKey="tasks" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="seeds" name="Seeds earned" radius={[6, 6, 0, 0]}>
                     {contributions.map((c, i) => <Cell key={i} fill={c.color} />)}
                   </Bar>
                 </BarChart>
@@ -185,7 +211,7 @@ export default function Reports() {
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="count" name="Tasks Completed" stroke="#16a34a" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="count" name="Seeds Earned" stroke="#16a34a" strokeWidth={2.5} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : <NoData />}

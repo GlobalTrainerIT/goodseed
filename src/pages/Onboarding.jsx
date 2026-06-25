@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { Sprout, Plus, Trash2, Check, ArrowRight } from 'lucide-react'
 import { Card, Button, Input, Label, ProgressBar } from '@/components/ui'
 import { EmojiPicker, ColorPicker } from '@/components/shared/EmojiPicker'
 import Avatar from '@/components/shared/Avatar'
 import { AVATAR_EMOJIS, AVATAR_COLORS, TASK_CATEGORIES } from '@/lib/constants'
-import { create, getById } from '@/lib/db'
+import { create, getById, getAll } from '@/lib/db'
 import { useCurrentUser } from '@/lib/hooks'
 
 const TASK_SUGGESTIONS = [
@@ -24,10 +24,14 @@ export default function Onboarding() {
   const [children, setChildren] = useState([])
   const [tasks, setTasks] = useState([])
 
-  if (!user) {
-    navigate('/Welcome')
-    return null
-  }
+  if (!user) return <Navigate to="/Welcome" replace />
+
+  // Guard: if this family already has children or tasks, onboarding is done —
+  // don't let a stray /Onboarding visit re-run setup and orphan data.
+  const alreadySetUp =
+    getAll('users').some((u) => u.family_id === user.family_id && u.role === 'child') ||
+    getAll('tasks').some((t) => t.family_id === user.family_id)
+  if (alreadySetUp) return <Navigate to="/Dashboard" replace />
 
   function addChild() {
     if (!childDraft.name.trim()) return

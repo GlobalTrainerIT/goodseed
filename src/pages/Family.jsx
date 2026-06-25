@@ -15,7 +15,7 @@ import { useCollection, useCurrentUser } from '@/lib/hooks'
 import { create, update, remove, getById, resetAll } from '@/lib/db'
 import { contributeToGoal } from '@/lib/domain'
 import { AVATAR_EMOJIS, AVATAR_COLORS } from '@/lib/constants'
-import { generateInviteCode, relativeTime, formatDate } from '@/lib/utils'
+import { generateInviteCode, relativeTime, formatDate, plural } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 import { logout } from '@/lib/auth'
 import { useNavigate } from 'react-router-dom'
@@ -69,7 +69,7 @@ export default function Family() {
 
   return (
     <div>
-      <PageHeader title={family.name} subtitle={`${members.length} members · ${children.length} children`} />
+      <PageHeader title={family.name || 'Our Family'} subtitle={`${plural(members.length, 'member')} · ${plural(children.length, 'child', 'children')}`} />
 
       <Card className="mb-5 overflow-hidden border-seed-100 bg-gradient-to-br from-seed-50 to-white dark:border-seed-900/40 dark:from-seed-900/20 dark:to-gray-900">
         <div className="flex flex-col items-center justify-between gap-3 p-5 sm:flex-row">

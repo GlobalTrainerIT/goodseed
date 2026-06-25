@@ -6,8 +6,14 @@
  * every local write up, and applies realtime changes from other devices back
  * into the local store. With no Supabase configured it is entirely inert.
  *
+ * Resilience: a circuit breaker stops hammering the backend when it's
+ * unreachable (e.g. a paused free-tier project). Failures are logged once, not
+ * per request, and a sync-status store drives an "offline" UI indicator. The
+ * local store always remains authoritative when the cloud is down.
+ *
  * The demo family is intentionally local-only (never synced).
  */
+import { useSyncExternalStore } from 'react'
 import { supabase, supabaseEnabled, RECORDS_TABLE } from './supabase'
 import {
   COLLECTIONS,
@@ -25,6 +31,74 @@ const DEMO_FAMILY = 'fam_demo'
 let activeFamilyId = null
 let channel = null
 let syncing = false
+
+// ---- sync status store -----------------------------------------------------
+// 'local'  — no backend configured (pure localStorage)
+// 'connecting' — attempting initial load
+// 'online' — synced
+// 'offline' — backend unreachable; circuit breaker open, running on-device
+let status = supabaseEnabled ? 'connecting' : 'local'
+const statusListeners = new Set()
+function setStatus(next) {
+  if (next === status) return
+  status = next
+  statusListeners.forEach((l) => l())
+}
+export function getSyncStatus() {
+  return status
+}
+export function useSyncStatus() {
+  return useSyncExternalStore(
+    (cb) => {
+      statusListeners.add(cb)
+      return () => statusListeners.delete(cb)
+    },
+    getSyncStatus,
+    getSyncStatus
+  )
+}
+
+// ---- circuit breaker -------------------------------------------------------
+const MAX_FAILURES = 4
+const COOLDOWN_MS = 60_000
+let failures = 0
+let breakerOpenUntil = 0
+let loggedDown = false
+
+function breakerOpen() {
+  return Date.now() < breakerOpenUntil
+}
+function onSuccess() {
+  failures = 0
+  breakerOpenUntil = 0
+  loggedDown = false
+  if (active()) setStatus('online')
+}
+function onFailure(context, detail) {
+  failures += 1
+  if (failures >= MAX_FAILURES) {
+    breakerOpenUntil = Date.now() + COOLDOWN_MS
+    if (!loggedDown) {
+      // Single throttled log instead of one per request.
+      // eslint-disable-next-line no-console
+      console.warn(`[sync] backend unreachable — pausing sync ~${COOLDOWN_MS / 1000}s (${context})`, detail || '')
+      loggedDown = true
+    }
+  }
+  if (active()) setStatus('offline')
+}
+
+/** Manually retry after the breaker tripped (e.g. user taps the offline chip). */
+export async function retrySync() {
+  failures = 0
+  breakerOpenUntil = 0
+  loggedDown = false
+  if (activeFamilyId) {
+    setStatus('connecting')
+    const rows = await fetchFamily(activeFamilyId)
+    if (rows.length) bulkApplyRemote(rows)
+  }
+}
 
 // ---- row mapping -----------------------------------------------------------
 function familyIdOf(collection, record) {
@@ -47,22 +121,26 @@ function active() {
 
 // ---- push handlers (called by db.js on local writes) -----------------------
 async function pushUpsert(collection, record) {
-  if (!active()) return
+  if (!active() || breakerOpen()) return
   const row = rowFor(collection, record)
   if (!row || row.family_id !== activeFamilyId) return
   try {
-    await supabase.from(RECORDS_TABLE).upsert(row, { onConflict: 'id' })
+    const { error } = await supabase.from(RECORDS_TABLE).upsert(row, { onConflict: 'id' })
+    if (error) onFailure('upsert', error.message)
+    else onSuccess()
   } catch (e) {
-    console.warn('[sync] upsert failed', e)
+    onFailure('upsert', String(e))
   }
 }
 
 async function pushDelete(_collection, id) {
-  if (!active() || !id) return
+  if (!active() || breakerOpen() || !id) return
   try {
-    await supabase.from(RECORDS_TABLE).delete().eq('id', id)
+    const { error } = await supabase.from(RECORDS_TABLE).delete().eq('id', id)
+    if (error) onFailure('delete', error.message)
+    else onSuccess()
   } catch (e) {
-    console.warn('[sync] delete failed', e)
+    onFailure('delete', String(e))
   }
 }
 
@@ -72,27 +150,43 @@ function pushSettings(settings) {
 
 // ---- remote reads ----------------------------------------------------------
 async function fetchFamily(familyId) {
-  const { data, error } = await supabase
-    .from(RECORDS_TABLE)
-    .select('id,collection,data')
-    .eq('family_id', familyId)
-  if (error) {
-    console.warn('[sync] fetch failed', error)
+  if (breakerOpen()) return []
+  try {
+    const { data, error } = await supabase
+      .from(RECORDS_TABLE)
+      .select('id,collection,data')
+      .eq('family_id', familyId)
+    if (error) {
+      onFailure('fetch', error.message)
+      return []
+    }
+    onSuccess()
+    return data || []
+  } catch (e) {
+    onFailure('fetch', String(e))
     return []
   }
-  return data || []
 }
 
 export async function findFamilyByInviteCode(code) {
-  if (!supabaseEnabled || !code) return null
-  const { data, error } = await supabase
-    .from(RECORDS_TABLE)
-    .select('data')
-    .eq('collection', 'families')
-    .eq('data->>invite_code', code.trim().toUpperCase())
-    .limit(1)
-  if (error || !data || !data.length) return null
-  return data[0].data
+  if (!supabaseEnabled || !code || breakerOpen()) return null
+  try {
+    const { data, error } = await supabase
+      .from(RECORDS_TABLE)
+      .select('data')
+      .eq('collection', 'families')
+      .eq('data->>invite_code', code.trim().toUpperCase())
+      .limit(1)
+    if (error) {
+      onFailure('lookup', error.message)
+      return null
+    }
+    onSuccess()
+    return data && data.length ? data[0].data : null
+  } catch (e) {
+    onFailure('lookup', String(e))
+    return null
+  }
 }
 
 /** Load a family's data into the local store without subscribing (used pre-login). */
@@ -104,6 +198,7 @@ export async function loadFamilyData(familyId) {
 
 // ---- lifecycle -------------------------------------------------------------
 async function pushLocalMissing(familyId, remoteIds) {
+  if (breakerOpen()) return
   const rows = []
   COLLECTIONS.forEach((c) => {
     getAll(c).forEach((rec) => {
@@ -118,9 +213,11 @@ async function pushLocalMissing(familyId, remoteIds) {
   }
   if (rows.length) {
     try {
-      await supabase.from(RECORDS_TABLE).upsert(rows, { onConflict: 'id' })
+      const { error } = await supabase.from(RECORDS_TABLE).upsert(rows, { onConflict: 'id' })
+      if (error) onFailure('initial push', error.message)
+      else onSuccess()
     } catch (e) {
-      console.warn('[sync] initial push failed', e)
+      onFailure('initial push', String(e))
     }
   }
 }
@@ -139,20 +236,30 @@ function subscribe(familyId) {
             applyRemoteUpsert(payload.new.collection, payload.new.data)
           }
         } catch (e) {
+          // eslint-disable-next-line no-console
           console.warn('[sync] realtime apply failed', e)
         }
       }
     )
-    .subscribe()
+    .subscribe((channelStatus) => {
+      if (channelStatus === 'SUBSCRIBED') onSuccess()
+      else if (channelStatus === 'CHANNEL_ERROR' || channelStatus === 'TIMED_OUT') {
+        if (active()) setStatus('offline')
+      }
+    })
 }
 
 export async function initSync(familyId) {
-  if (!supabaseEnabled || !familyId || familyId === DEMO_FAMILY) return
+  if (!supabaseEnabled || !familyId || familyId === DEMO_FAMILY) {
+    setStatus(supabaseEnabled ? 'local' : 'local')
+    return
+  }
   if (syncing && activeFamilyId === familyId) return
   await teardownSync()
 
   activeFamilyId = familyId
   syncing = true
+  setStatus('connecting')
   registerSyncHandlers({ onUpsert: pushUpsert, onDelete: pushDelete, onSettings: pushSettings })
 
   const remote = await fetchFamily(familyId)
@@ -174,6 +281,7 @@ export async function teardownSync() {
   registerSyncHandlers({})
   syncing = false
   activeFamilyId = null
+  setStatus(supabaseEnabled ? 'connecting' : 'local')
 }
 
 export function isSyncing() {

@@ -7,9 +7,10 @@ export const BADGE_DEFS = [
   {
     badge_type: 'first_task',
     title: 'First Seed',
-    description: 'Completed your very first task',
+    description: 'Earned your very first seed',
     icon_emoji: '🌱',
-    check: (c) => c.tasksCompleted >= 1,
+    // Unlocks on the first seed earned, whether from a task or a parent award.
+    check: (c) => c.totalSeedsEarned >= 1 || c.tasksCompleted >= 1,
   },
   {
     badge_type: 'streak_3',

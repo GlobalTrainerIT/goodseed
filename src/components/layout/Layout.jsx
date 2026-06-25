@@ -8,6 +8,7 @@ import { useCurrentUser, useSettings } from '@/lib/hooks'
 import ErrorBoundary from '@/lib/ErrorBoundary'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import ParentPinGate from './ParentPinGate'
+import SyncIndicator from './SyncIndicator'
 import { useUnlocked } from '@/lib/pinLock'
 
 export default function Layout() {
@@ -30,7 +31,8 @@ export default function Layout() {
       <div className={isChild ? '' : 'lg:pl-[280px]'}>
         {/* Desktop top bar with bell (parent only) */}
         {!isChild && (
-          <div className="sticky top-0 z-20 hidden items-center justify-end border-b border-gray-100 bg-seed-50/80 px-6 py-2.5 backdrop-blur dark:border-gray-800 dark:bg-gray-950/80 lg:flex">
+          <div className="sticky top-0 z-20 hidden items-center justify-end gap-2 border-b border-gray-100 bg-seed-50/80 px-6 py-2.5 backdrop-blur dark:border-gray-800 dark:bg-gray-950/80 lg:flex">
+            <SyncIndicator />
             <NotificationBell />
           </div>
         )}
