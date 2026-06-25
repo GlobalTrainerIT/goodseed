@@ -75,6 +75,52 @@ export default function Welcome() {
     navigate('/Onboarding', { state: { familyId: family.id } })
   }
 
+  // A second parent joining an existing family on their own device.
+  async function handleJoinParent(e) {
+    e.preventDefault()
+    setError('')
+    if (!pName.trim()) {
+      setError('Please enter your name.')
+      return
+    }
+    const wanted = code.trim().toUpperCase()
+    let family = getAll('families').find((f) => f.invite_code.toUpperCase() === wanted)
+    if (!family) {
+      setLooking(true)
+      try {
+        const remote = await findFamilyByInviteCode(wanted)
+        if (remote) {
+          await loadFamilyData(remote.id)
+          family = remote
+        }
+      } catch {
+        /* fall through to error */
+      }
+      setLooking(false)
+    }
+    if (!family) {
+      setError('No family found with that code. Double-check and try again.')
+      return
+    }
+    const parent = create('users', {
+      family_id: family.id,
+      full_name: pName.trim(),
+      email: pEmail.trim(),
+      role: 'parent',
+      avatar_emoji: '🧑',
+      avatar_bg_color: '#c7d2fe',
+      seed_balance: 0,
+      total_seeds_earned: 0,
+      streak_current: 0,
+      streak_longest: 0,
+      streak_savers_available: 0,
+      xp: 0,
+      level: 1,
+    })
+    login(parent.id)
+    navigate('/Dashboard')
+  }
+
   async function handleFindFamily(e) {
     e.preventDefault()
     setError('')
@@ -134,7 +180,7 @@ export default function Welcome() {
                 <Crown className="h-8 w-8 text-amber-600" />
               </div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">I'm a Parent</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Create your family and start managing tasks & rewards.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Create a new family, or join one your co-parent started.</p>
             </Card>
           </button>
           <button onClick={() => { setMode('child'); setError('') }} className="group">
@@ -150,6 +196,40 @@ export default function Welcome() {
       )}
 
       {mode === 'parent' && (
+        <Card className="w-full max-w-md p-6">
+          <h2 className="mb-1 text-lg font-bold text-gray-900 dark:text-gray-100">Parent setup</h2>
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Starting fresh, or joining a family that already exists?</p>
+          <div className="space-y-3">
+            <button
+              onClick={() => { setMode('parent-create'); setError('') }}
+              className="flex w-full items-center gap-3 rounded-xl border border-gray-100 p-4 text-left transition hover:border-seed-400 hover:bg-seed-50 dark:border-gray-800 dark:hover:bg-gray-800"
+            >
+              <span className="text-2xl">🏡</span>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">Create a new family</p>
+                <p className="text-xs text-gray-400">Set up the family and get an invite code.</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-300" />
+            </button>
+            <button
+              onClick={() => { setMode('parent-join'); setError('') }}
+              className="flex w-full items-center gap-3 rounded-xl border border-gray-100 p-4 text-left transition hover:border-seed-400 hover:bg-seed-50 dark:border-gray-800 dark:hover:bg-gray-800"
+            >
+              <span className="text-2xl">🤝</span>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">Join my family</p>
+                <p className="text-xs text-gray-400">Use the invite code from your co-parent.</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-300" />
+            </button>
+          </div>
+          <button type="button" onClick={() => setMode('choose')} className="mt-4 flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+        </Card>
+      )}
+
+      {mode === 'parent-create' && (
         <Card className="w-full max-w-md p-6">
           <form onSubmit={handleCreateParent} className="space-y-4">
             <div>
@@ -167,7 +247,39 @@ export default function Welcome() {
             <Button type="submit" className="w-full">
               Create Family <ArrowRight className="h-4 w-4" />
             </Button>
-            <button type="button" onClick={() => setMode('choose')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+            <button type="button" onClick={() => setMode('parent')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+          </form>
+        </Card>
+      )}
+
+      {mode === 'parent-join' && (
+        <Card className="w-full max-w-md p-6">
+          <form onSubmit={handleJoinParent} className="space-y-4">
+            <div>
+              <Label>Your name</Label>
+              <Input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="e.g. Jordan" autoFocus />
+            </div>
+            <div>
+              <Label>Email (optional)</Label>
+              <Input type="email" value={pEmail} onChange={(e) => setPEmail(e.target.value)} placeholder="you@example.com" />
+            </div>
+            <div>
+              <Label>Family invite code</Label>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g. DEMO01"
+                maxLength={6}
+                className="text-center text-lg font-bold tracking-widest"
+              />
+              <p className="mt-1.5 text-xs text-gray-400">Ask your co-parent for the code in Family → Invite.</p>
+            </div>
+            <Button type="submit" className="w-full" disabled={looking}>
+              {looking ? 'Looking…' : <>Join Family <ArrowRight className="h-4 w-4" /></>}
+            </Button>
+            <button type="button" onClick={() => setMode('parent')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
           </form>
