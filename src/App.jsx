@@ -7,6 +7,9 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import { useCurrentUser } from '@/lib/hooks'
 import { runDailyMaintenance } from '@/lib/domain'
 import { initSync, teardownSync } from '@/lib/sync'
+import { getById, update } from '@/lib/db'
+import { isPlus, familyPlan } from '@/lib/plan'
+import { fetchServerPlan } from '@/lib/billing'
 
 // Route-level code splitting keeps the initial bundle small; heavy pages
 // (Reports → recharts, jsPDF) only load when visited.
@@ -53,12 +56,23 @@ export default function App() {
     let cancelled = false
     ;(async () => {
       try {
-        if (user?.family_id) {
-          await initSync(user.family_id)
-          if (!cancelled) runDailyMaintenance(user.family_id)
-        } else {
+        const fid = user?.family_id
+        if (!fid) {
           await teardownSync()
+          return
         }
+        // Reconcile the plan from the server (Stripe-authoritative once billing
+        // is live), so an upgrade unlocks Plus on every device.
+        const serverPlan = await fetchServerPlan(fid)
+        if (!cancelled && serverPlan) {
+          const fam = getById('families', fid)
+          if (fam && familyPlan(fam) !== serverPlan) update('families', fid, { plan: serverPlan })
+        }
+        // Cloud sync is a Plus feature; Free families stay on-device.
+        const fam = getById('families', fid)
+        if (!cancelled && isPlus(fam)) await initSync(fid)
+        else await teardownSync()
+        if (!cancelled) runDailyMaintenance(fid)
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('[App sync/maintenance]', e)

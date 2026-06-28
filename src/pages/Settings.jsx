@@ -7,8 +7,11 @@ import { exportData, importData } from '@/lib/db'
 import { toast } from '@/lib/toast'
 import { useRef } from 'react'
 import Avatar from '@/components/shared/Avatar'
-import { useCurrentUser, useSettings, useCollection } from '@/lib/hooks'
+import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hooks'
 import { updateSettings, remove, resetAll } from '@/lib/db'
+import { isPlus, planOf } from '@/lib/plan'
+import UpgradeDialog from '@/components/shared/UpgradeDialog'
+import { Sparkles } from 'lucide-react'
 import { buyStreakSaver } from '@/lib/domain'
 import { logout } from '@/lib/auth'
 import { useTheme, toggleTheme } from '@/lib/theme'
@@ -44,7 +47,10 @@ export default function Settings() {
   const prefs = settings.notificationPrefs || {}
   const myBadges = badges.filter((b) => b.user_id === user.id)
   const [pinDialog, setPinDialog] = useState(false)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const importRef = useRef(null)
+  const family = useRecord('families', user.family_id)
+  const plus = isPlus(family)
 
   function handleExport() {
     const blob = new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' })
@@ -141,6 +147,30 @@ export default function Settings() {
         <Card className="mb-5 p-5">
           <h3 className="mb-3 font-bold text-gray-900 dark:text-gray-100">🏅 My Badges</h3>
           <BadgeGrid earnedBadges={myBadges} />
+        </Card>
+      )}
+
+      {/* Plan (parent only) */}
+      {isParent && (
+        <Card className={`mb-5 p-5 ${plus ? 'border-seed-200 dark:border-seed-800' : ''}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="flex items-center gap-1.5 font-bold text-gray-900 dark:text-gray-100">
+                {plus && <Sparkles className="h-4 w-4 text-seed-600" />}
+                {plus ? 'GoodSeed Plus' : 'Free plan'}
+              </h3>
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                {plus
+                  ? 'Unlimited children, co-parents, and multi-device sync.'
+                  : `Up to ${planOf(family).maxChildren} children, single device.`}
+              </p>
+            </div>
+            {plus ? (
+              <span className="rounded-full bg-seed-100 px-3 py-1 text-xs font-bold text-seed-700 dark:bg-seed-900/40 dark:text-seed-300">Active</span>
+            ) : (
+              <Button onClick={() => setUpgradeOpen(true)}><Sparkles className="h-4 w-4" /> Upgrade</Button>
+            )}
+          </div>
         </Card>
       )}
 
@@ -246,6 +276,7 @@ export default function Settings() {
       />
 
       <SetPinDialog open={pinDialog} onClose={() => setPinDialog(false)} />
+      <UpgradeDialog open={upgradeOpen} onClose={() => setUpgradeOpen(false)} family={family} />
     </div>
   )
 }

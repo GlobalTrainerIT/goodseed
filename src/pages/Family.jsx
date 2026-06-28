@@ -16,6 +16,8 @@ import { create, update, remove, getById, resetAll } from '@/lib/db'
 import { contributeToGoal } from '@/lib/domain'
 import { AVATAR_EMOJIS, AVATAR_COLORS } from '@/lib/constants'
 import { generateInviteCode, relativeTime, formatDate, plural } from '@/lib/utils'
+import { canAddChild, isPlus, planOf } from '@/lib/plan'
+import UpgradeDialog from '@/components/shared/UpgradeDialog'
 import { toast } from '@/lib/toast'
 import { logout } from '@/lib/auth'
 import { useNavigate } from 'react-router-dom'
@@ -45,8 +47,13 @@ export default function Family() {
   const [goalOpen, setGoalOpen] = useState(false)
   const [contribGoal, setContribGoal] = useState(null)
   const [bossOpen, setBossOpen] = useState(false)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [upgradeReason, setUpgradeReason] = useState('')
 
   if (!family) return null
+
+  const plusFamily = isPlus(family)
+  const childLimit = planOf(family).maxChildren
 
   function copyCode() {
     navigator.clipboard?.writeText(family.invite_code)
@@ -56,6 +63,23 @@ export default function Family() {
     const url = `${window.location.origin}/Welcome?join=${family.invite_code}`
     navigator.clipboard?.writeText(url)
     toast({ title: 'Invite link copied!', message: 'Share it with your family.', emoji: '🔗' })
+  }
+
+  function tryAddChild() {
+    if (!canAddChild(family, children.length)) {
+      setUpgradeReason(`The Free plan includes up to ${childLimit} children. Upgrade to Plus for unlimited children.`)
+      setUpgradeOpen(true)
+      return
+    }
+    setChildOpen(true)
+  }
+  function tryInviteDevice() {
+    if (!plusFamily) {
+      setUpgradeReason('Kids on their own devices need real-time sync — a Plus feature.')
+      setUpgradeOpen(true)
+      return
+    }
+    copyLink()
   }
 
   const tabs = [
@@ -88,12 +112,22 @@ export default function Family() {
 
       {tab === 'children' && (
         <div>
+          {!plusFamily && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-seed-100 bg-seed-50/60 px-4 py-2.5 text-sm dark:border-seed-900/40 dark:bg-seed-900/10">
+              <span className="text-gray-600 dark:text-gray-300">
+                <b>Free plan</b> · {children.length}/{childLimit} children
+              </span>
+              <button onClick={() => { setUpgradeReason(''); setUpgradeOpen(true) }} className="font-semibold text-seed-700 hover:underline dark:text-seed-300">
+                Upgrade to Plus ✨
+              </button>
+            </div>
+          )}
           <div className="mb-4 flex flex-wrap gap-2">
-            <Button onClick={() => setChildOpen(true)}><UserPlus className="h-4 w-4" /> Add Child (No Device)</Button>
-            <Button variant="secondary" onClick={copyLink}><Link2 className="h-4 w-4" /> Invite Child with Device</Button>
+            <Button onClick={tryAddChild}><UserPlus className="h-4 w-4" /> Add Child (No Device)</Button>
+            <Button variant="secondary" onClick={tryInviteDevice}><Link2 className="h-4 w-4" /> Invite Child with Device</Button>
           </div>
           {children.length === 0 ? (
-            <EmptyState icon="👶" title="No children yet" description="Add a child profile to start assigning tasks." action={<Button onClick={() => setChildOpen(true)}><UserPlus className="h-4 w-4" /> Add Child</Button>} />
+            <EmptyState icon="👶" title="No children yet" description="Add a child profile to start assigning tasks." action={<Button onClick={tryAddChild}><UserPlus className="h-4 w-4" /> Add Child</Button>} />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {children.map((c) => (
@@ -144,6 +178,7 @@ export default function Family() {
       <GoalDialog open={goalOpen} onClose={() => setGoalOpen(false)} user={user} />
       <ContributeDialog open={!!contribGoal} onClose={() => setContribGoal(null)} goal={contribGoal} children={children} />
       <BossDialog open={bossOpen} onClose={() => setBossOpen(false)} user={user} boss={activeBoss} />
+      <UpgradeDialog open={upgradeOpen} onClose={() => setUpgradeOpen(false)} family={family} reason={upgradeReason} />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { EmojiPicker, ColorPicker } from '@/components/shared/EmojiPicker'
 import Avatar from '@/components/shared/Avatar'
 import { AVATAR_EMOJIS, AVATAR_COLORS, TASK_CATEGORIES } from '@/lib/constants'
 import { create, getById, getAll } from '@/lib/db'
+import { toast } from '@/lib/toast'
 import { useCurrentUser } from '@/lib/hooks'
 
 const TASK_SUGGESTIONS = [
@@ -35,6 +36,10 @@ export default function Onboarding() {
 
   function addChild() {
     if (!childDraft.name.trim()) return
+    if (children.length >= 2) {
+      toast({ title: 'Free plan: up to 2 children', message: 'You can add more after upgrading to Plus.', emoji: '🌱', type: 'info' })
+      return
+    }
     setChildren((c) => [...c, { ...childDraft }])
     setChildDraft({ name: '', age: '', emoji: '🚀', color: AVATAR_COLORS[(children.length + 1) % AVATAR_COLORS.length] })
   }

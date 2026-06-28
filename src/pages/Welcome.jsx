@@ -6,6 +6,7 @@ import Avatar from '@/components/shared/Avatar'
 import { getAll, create } from '@/lib/db'
 import { login } from '@/lib/auth'
 import { findFamilyByInviteCode, loadFamilyData } from '@/lib/sync'
+import { isPlus } from '@/lib/plan'
 import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
 import { updateSettings } from '@/lib/db'
@@ -45,6 +46,7 @@ export default function Welcome() {
       name: familyName.trim(),
       invite_code: generateInviteCode(),
       avatar_emoji: '🏡',
+      plan: 'free',
     })
     const parent = create('users', {
       family_id: family.id,
@@ -100,6 +102,10 @@ export default function Welcome() {
     }
     if (!family) {
       setError('No family found with that code. Double-check and try again.')
+      return
+    }
+    if (!isPlus(family)) {
+      setError('Co-parents are a GoodSeed Plus feature. Ask the family owner to upgrade to Plus, then try again.')
       return
     }
     const parent = create('users', {
