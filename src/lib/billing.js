@@ -7,10 +7,13 @@
 import { supabase, supabaseEnabled } from './supabase'
 import { toast } from './toast'
 
-const STRIPE_READY = Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-
+// Checkout runs entirely through the `create-checkout` Edge Function, which holds
+// the real Stripe keys server-side. So billing readiness depends only on whether
+// the backend is reachable — NOT on any client-side Stripe publishable key (the
+// redirect-based Checkout flow doesn't use one). If the function isn't set up,
+// the call simply errors and we show a friendly message.
 export function billingConfigured() {
-  return STRIPE_READY && supabaseEnabled
+  return supabaseEnabled
 }
 
 /**
