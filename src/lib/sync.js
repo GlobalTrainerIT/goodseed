@@ -168,21 +168,21 @@ async function fetchFamily(familyId) {
   }
 }
 
+// Look up + join a family by invite code (the join IS the membership grant),
+// then load its data. Returns the full family record (with plan), or null.
 export async function findFamilyByInviteCode(code) {
   if (!supabaseEnabled || !code || breakerOpen()) return null
   try {
-    const { data, error } = await supabase
-      .from(RECORDS_TABLE)
-      .select('data')
-      .eq('collection', 'families')
-      .eq('data->>invite_code', code.trim().toUpperCase())
-      .limit(1)
-    if (error) {
-      onFailure('lookup', error.message)
+    await ensureSession()
+    const { data, error } = await supabase.rpc('join_family', { p_invite_code: code.trim() })
+    if (error || !data || !data.length) {
+      if (error) onFailure('lookup', error.message)
       return null
     }
     onSuccess()
-    return data && data.length ? data[0].data : null
+    const fid = data[0].family_id
+    await loadFamilyData(fid) // member now → can read the family's records
+    return getById('families', fid) || { id: fid, name: data[0].name }
   } catch (e) {
     onFailure('lookup', String(e))
     return null
@@ -249,9 +249,45 @@ function subscribe(familyId) {
     })
 }
 
+// Ensure this device has an (anonymous) identity for membership-scoped RLS.
+async function ensureSession() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) return session
+    const { data, error } = await supabase.auth.signInAnonymously()
+    if (error) {
+      console.warn('[sync] anonymous sign-in failed', error.message)
+      return null
+    }
+    return data.session
+  } catch (e) {
+    console.warn('[sync] session error', e)
+    return null
+  }
+}
+
+// Make this device a member of the family: join an existing cloud family by its
+// invite code, or register a freshly-created local one. Idempotent.
+async function claimFamily(family) {
+  if (!family) return false
+  try {
+    const { error } = await supabase.rpc('join_family', { p_invite_code: family.invite_code })
+    if (!error) return true
+    const reg = await supabase.rpc('register_family', {
+      p_family_id: family.id,
+      p_invite_code: family.invite_code,
+      p_name: family.name,
+    })
+    return !reg.error
+  } catch (e) {
+    console.warn('[sync] claim family failed', e)
+    return false
+  }
+}
+
 export async function initSync(familyId) {
   if (!supabaseEnabled || !familyId || familyId === DEMO_FAMILY) {
-    setStatus(supabaseEnabled ? 'local' : 'local')
+    setStatus('local')
     return
   }
   if (syncing && activeFamilyId === familyId) return
@@ -260,6 +296,12 @@ export async function initSync(familyId) {
   activeFamilyId = familyId
   syncing = true
   setStatus('connecting')
+
+  // Establish device identity + family membership before any reads/writes
+  // (required once records RLS is membership-scoped).
+  const session = await ensureSession()
+  if (session) await claimFamily(getById('families', familyId))
+
   registerSyncHandlers({ onUpsert: pushUpsert, onDelete: pushDelete, onSettings: pushSettings })
 
   const remote = await fetchFamily(familyId)

@@ -16,7 +16,9 @@ export const supabaseEnabled = Boolean(url && key)
 
 export const supabase = supabaseEnabled
   ? createClient(url, key, {
-      auth: { persistSession: false },
+      // Persist the anonymous session so each device keeps a stable identity
+      // (used for family-membership RLS).
+      auth: { persistSession: true, autoRefreshToken: true },
       realtime: { params: { eventsPerSecond: 5 } },
     })
   : null
