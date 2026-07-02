@@ -20,8 +20,11 @@ into chat — secret keys go straight into the dashboards.
 1. **Developers → Webhooks → Add endpoint**.
 2. Endpoint URL:
    `https://jedqarsyvrpicvlztyrm.supabase.co/functions/v1/stripe-webhook`
-3. Events to send: `checkout.session.completed`,
-   `customer.subscription.updated`, `customer.subscription.deleted`.
+3. Events to send (all 5): `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `invoice.paid`, `invoice.payment_failed`.
+   (The last two keep the renewal date fresh and downgrade lapsed/failed
+   subscriptions — add them to any webhook that's missing them.)
 4. Save, then copy the **Signing secret** (`whsec_...`).
 
 ## 3. Supabase — set the function secrets

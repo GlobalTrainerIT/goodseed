@@ -2,6 +2,16 @@
 // Verifies the Stripe signature, then upserts the subscriptions table using the
 // service role (which bypasses RLS), so clients can never grant themselves Plus.
 //
+// Handles the full lifecycle:
+//   checkout.session.completed         → plan=plus, status=active
+//   customer.subscription.updated      → mirror status (plus while active/trialing)
+//   customer.subscription.deleted      → plan=free, status=canceled
+//   invoice.paid                       → refresh status + renewal date
+//   invoice.payment_failed             → status=past_due (app re-gates Plus)
+//
+// Note: on newer Stripe API versions `current_period_end` lives on the
+// subscription ITEM, not the subscription — we read both.
+//
 // Required secrets (Supabase dashboard → Edge Functions → Secrets):
 //   STRIPE_SECRET_KEY      — Stripe secret key
 //   STRIPE_WEBHOOK_SECRET  — the signing secret for this webhook endpoint (whsec_…)
@@ -15,18 +25,32 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
+function periodEnd(sub: any): string | null {
+  const ts = sub?.items?.data?.[0]?.current_period_end ?? sub?.current_period_end
+  return ts ? new Date(ts * 1000).toISOString() : null
+}
+
+function isPlusStatus(status: string | undefined): boolean {
+  return status === 'active' || status === 'trialing'
+}
+
 async function setPlan(familyId: string, plan: string, status: string, sub: any) {
   await supabase.from('subscriptions').upsert({
     family_id: familyId,
     plan,
     status,
-    stripe_customer_id: sub?.customer ?? null,
+    stripe_customer_id: (typeof sub?.customer === 'string' ? sub.customer : sub?.customer?.id) ?? null,
     stripe_subscription_id: sub?.id ?? null,
-    current_period_end: sub?.current_period_end
-      ? new Date(sub.current_period_end * 1000).toISOString()
-      : null,
+    current_period_end: periodEnd(sub),
     updated_at: new Date().toISOString(),
   })
+}
+
+async function applySubscription(sub: any, fallbackFamilyId?: string) {
+  const familyId = sub?.metadata?.family_id || fallbackFamilyId
+  if (!familyId) return
+  const plus = isPlusStatus(sub?.status)
+  await setPlan(familyId, plus ? 'plus' : 'free', sub?.status ?? 'unknown', sub)
 }
 
 Deno.serve(async (req) => {
@@ -45,17 +69,36 @@ Deno.serve(async (req) => {
 
   try {
     const obj: any = event.data.object
-    if (event.type === 'checkout.session.completed') {
-      const familyId = obj.client_reference_id || obj.metadata?.family_id
-      if (familyId) {
-        const sub = obj.subscription ? await stripe.subscriptions.retrieve(obj.subscription) : null
-        await setPlan(familyId, 'plus', 'active', sub)
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const familyId = obj.client_reference_id || obj.metadata?.family_id
+        if (familyId && obj.subscription) {
+          const sub = await stripe.subscriptions.retrieve(obj.subscription)
+          await applySubscription(sub, familyId)
+        } else if (familyId) {
+          await setPlan(familyId, 'plus', 'active', null)
+        }
+        break
       }
-    } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-      const familyId = obj.metadata?.family_id
-      if (familyId) {
-        const active = obj.status === 'active' || obj.status === 'trialing'
-        await setPlan(familyId, active ? 'plus' : 'free', obj.status, obj)
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        await applySubscription(obj)
+        break
+      }
+      case 'invoice.paid':
+      case 'invoice.payment_failed': {
+        // invoice → its subscription (location varies across API versions)
+        const subId =
+          obj.subscription ||
+          obj.parent?.subscription_details?.subscription ||
+          obj.lines?.data?.[0]?.subscription
+        if (subId) {
+          const sub = await stripe.subscriptions.retrieve(
+            typeof subId === 'string' ? subId : subId.id
+          )
+          await applySubscription(sub)
+        }
+        break
       }
     }
   } catch (e) {

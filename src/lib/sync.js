@@ -252,14 +252,23 @@ function subscribe(familyId) {
 // Ensure this device has an (anonymous) identity for membership-scoped RLS.
 async function ensureSession() {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) return session
-    const { data, error } = await supabase.auth.signInAnonymously()
-    if (error) {
-      console.warn('[sync] anonymous sign-in failed', error.message)
-      return null
+    let session = (await supabase.auth.getSession()).data.session
+    if (!session) {
+      const { data, error } = await supabase.auth.signInAnonymously()
+      if (error) {
+        console.warn('[sync] anonymous sign-in failed', error.message)
+        return null
+      }
+      session = data.session
     }
-    return data.session
+    // Realtime must carry the user token so postgres_changes passes the
+    // membership-scoped RLS (explicit — don't rely on auto-forwarding).
+    try {
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
+    } catch {
+      /* non-fatal */
+    }
+    return session
   } catch (e) {
     console.warn('[sync] session error', e)
     return null

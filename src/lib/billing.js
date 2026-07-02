@@ -67,7 +67,8 @@ export async function fetchServerPlan(familyId) {
       .limit(1)
     if (error || !data || !data.length) return null
     const row = data[0]
-    return row.status === 'active' && row.plan === 'plus' ? 'plus' : 'free'
+    const active = row.status === 'active' || row.status === 'trialing'
+    return active && row.plan === 'plus' ? 'plus' : 'free'
   } catch {
     return null
   }

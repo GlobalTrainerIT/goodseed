@@ -8,15 +8,16 @@ import { toast } from '@/lib/toast'
 import { useRef } from 'react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hooks'
-import { updateSettings, remove, resetAll } from '@/lib/db'
+import { updateSettings, remove, resetAll, update } from '@/lib/db'
 import { isPlus, planOf } from '@/lib/plan'
+import { fetchServerPlan } from '@/lib/billing'
 import UpgradeDialog from '@/components/shared/UpgradeDialog'
 import { Sparkles } from 'lucide-react'
 import { buyStreakSaver } from '@/lib/domain'
 import { logout } from '@/lib/auth'
 import { useTheme, toggleTheme } from '@/lib/theme'
 import { SEED_NAME_OPTIONS } from '@/lib/constants'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog'
 import BadgeGrid from '@/components/gamification/BadgeGrid'
 import LevelProgress from '@/components/gamification/LevelProgress'
@@ -51,6 +52,42 @@ export default function Settings() {
   const importRef = useRef(null)
   const family = useRecord('families', user.family_id)
   const plus = isPlus(family)
+  const [activating, setActivating] = useState(false)
+
+  // Returning from Stripe checkout (?upgraded=1): the webhook can lag a few
+  // seconds behind the redirect, so poll the server plan briefly and unlock the
+  // moment it lands instead of looking like nothing happened.
+  useEffect(() => {
+    if (!family || isPlus(family)) return
+    if (!new URLSearchParams(window.location.search).has('upgraded')) return
+    let cancelled = false
+    let tries = 0
+    setActivating(true)
+    const timer = setInterval(async () => {
+      tries += 1
+      try {
+        const serverPlan = await fetchServerPlan(family.id)
+        if (!cancelled && serverPlan === 'plus') {
+          clearInterval(timer)
+          setActivating(false)
+          update('families', family.id, { plan: 'plus' })
+          toast({ title: 'Welcome to GoodSeed Plus! 🎉', message: 'Everything is unlocked.', emoji: '✨' })
+          return
+        }
+      } catch {
+        /* keep polling */
+      }
+      if (tries >= 15 && !cancelled) {
+        clearInterval(timer)
+        setActivating(false)
+      }
+    }, 2500)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [family?.id])
 
   function handleExport() {
     const blob = new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' })
@@ -167,6 +204,8 @@ export default function Settings() {
             </div>
             {plus ? (
               <span className="rounded-full bg-seed-100 px-3 py-1 text-xs font-bold text-seed-700 dark:bg-seed-900/40 dark:text-seed-300">Active</span>
+            ) : activating ? (
+              <span className="animate-pulse rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Activating…</span>
             ) : (
               <Button onClick={() => setUpgradeOpen(true)}><Sparkles className="h-4 w-4" /> Upgrade</Button>
             )}
