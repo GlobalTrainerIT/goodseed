@@ -5,6 +5,7 @@
  * UI is fully usable now and the real checkout is a drop-in.
  */
 import { supabase, supabaseEnabled } from './supabase'
+import { ensureSession } from './sync'
 import { toast } from './toast'
 
 // Checkout runs entirely through the `create-checkout` Edge Function, which holds
@@ -57,13 +58,38 @@ export async function startCheckout(family) {
 export async function openBillingPortal(family) {
   if (!family || !billingConfigured()) return false
   try {
+    // Make sure this device's identity is attached before the membership check
+    // server-side (avoids a race right after page load).
+    await ensureSession()
     const { data, error } = await supabase.functions.invoke('create-portal', {
       body: {
         family_id: family.id,
         return_url: `${window.location.origin}/Settings`,
       },
     })
-    if (error || !data?.url) throw error || new Error(data?.error || 'No portal URL')
+    if (error) {
+      // Surface the function's actual error instead of a generic message.
+      let detail = ''
+      try {
+        detail = (await error.context?.json())?.error || ''
+      } catch {
+        /* body not JSON */
+      }
+      if (detail === 'no_subscription') {
+        toast({
+          title: 'No billing on file',
+          message: 'This family has Plus without a paid subscription — nothing to manage.',
+          emoji: '🌱',
+          type: 'info',
+        })
+      } else if (detail === 'not_a_member') {
+        toast({ title: 'Still connecting…', message: 'Give it a second and try again.', type: 'info' })
+      } else {
+        toast({ title: 'Could not open billing', message: detail || 'Please try again in a moment.', type: 'error' })
+      }
+      return false
+    }
+    if (!data?.url) throw new Error('No portal URL')
     window.location.href = data.url
     return true
   } catch (e) {

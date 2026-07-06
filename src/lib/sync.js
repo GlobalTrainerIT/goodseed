@@ -250,7 +250,7 @@ function subscribe(familyId) {
 }
 
 // Ensure this device has an (anonymous) identity for membership-scoped RLS.
-async function ensureSession() {
+export async function ensureSession() {
   try {
     let session = (await supabase.auth.getSession()).data.session
     if (!session) {
