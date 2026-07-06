@@ -1,6 +1,8 @@
-/* GoodSeed service worker — offline-first app shell with runtime caching. */
-const CACHE = 'goodseed-v1'
-const APP_SHELL = ['/', '/index.html', '/seedling.svg', '/icon.svg', '/manifest.webmanifest']
+/* GoodSeed service worker — offline-first app shell with runtime caching.
+ * v2: the site is split into a static landing page (/index.html) and the app
+ * shell (/app.html); offline navigations fall back to the right one. */
+const CACHE = 'goodseed-v2'
+const APP_SHELL = ['/', '/index.html', '/app.html', '/seedling.svg', '/icon.svg', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -20,11 +22,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
 
-  // SPA navigations: network first, fall back to cached app shell (offline / deep links).
+  // Navigations: network first, fall back to the cached shell — the landing
+  // page for "/", the app shell for everything else (deep links offline).
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html').then((r) => r || caches.match('/')))
-    )
+    const path = new URL(request.url).pathname
+    const fallback = path === '/' || path === '/index.html' ? '/index.html' : '/app.html'
+    event.respondWith(fetch(request).catch(() => caches.match(fallback)))
     return
   }
 

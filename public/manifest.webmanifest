@@ -2,7 +2,7 @@
   "name": "GoodSeed · Family Rewards",
   "short_name": "GoodSeed",
   "description": "A faith-based family chore & rewards app. Plant good seeds, watch your family grow.",
-  "start_url": "/",
+  "start_url": "/Dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

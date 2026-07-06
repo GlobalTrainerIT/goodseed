@@ -2,20 +2,297 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>GoodSeed — Faith-Based Family Chore & Rewards App</title>
+    <meta name="description" content="GoodSeed is the faith-based chore and rewards app for families. Kids earn Seeds for tasks, build streaks and badges, redeem real rewards, and grow with a daily Bible verse. Free to start." />
+    <link rel="canonical" href="https://goodseed-family.netlify.app/" />
     <link rel="icon" type="image/svg+xml" href="/seedling.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <!-- Allow pinch-zoom for accessibility (no maximum-scale lock). -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#16a34a" />
-    <meta name="description" content="GoodSeed — a faith-based family chore & rewards app. Plant good seeds, watch your family grow." />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="GoodSeed" />
-    <title>GoodSeed · Family Rewards</title>
+
+    <!-- Open Graph / social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="GoodSeed" />
+    <meta property="og:title" content="GoodSeed — Faith-Based Family Chore & Rewards App" />
+    <meta property="og:description" content="Kids earn Seeds for chores, build streaks and badges, and redeem real rewards — with a daily Bible verse for the whole family. Free to start." />
+    <meta property="og:url" content="https://goodseed-family.netlify.app/" />
+    <meta property="og:image" content="https://goodseed-family.netlify.app/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GoodSeed — Faith-Based Family Chore & Rewards App" />
+    <meta name="twitter:description" content="Plant good seeds, watch your family grow. The faith-based chore & rewards app. Free to start." />
+    <meta name="twitter:image" content="https://goodseed-family.netlify.app/og.png" />
+
+    <!-- Structured data for search engines & AI assistants -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "GoodSeed",
+      "applicationCategory": "LifestyleApplication",
+      "operatingSystem": "Web",
+      "url": "https://goodseed-family.netlify.app/",
+      "description": "GoodSeed is a faith-based family chore and rewards app. Parents assign tasks, kids earn a seed currency for completing them, build streaks and badges, and redeem seeds for real family rewards. Includes a daily Bible verse, family goals, and real-time multi-device sync.",
+      "offers": [
+        { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
+        { "@type": "Offer", "name": "GoodSeed Plus", "price": "4.99", "priceCurrency": "USD", "description": "Monthly subscription: unlimited children, co-parents, and real-time multi-device sync." }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "What is GoodSeed?", "acceptedAnswer": { "@type": "Answer", "text": "GoodSeed is a faith-based chore and rewards app for families. Parents create tasks, kids earn Seeds (the in-app currency) for completing them, and Seeds can be redeemed for real rewards the family sets up — extra screen time, choosing dinner, a special outing. It layers in streaks, levels, badges, family goals, and a daily Bible verse." } },
+        { "@type": "Question", "name": "Is GoodSeed free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Free plan includes 1 parent, up to 2 children, and the full chore-and-rewards loop on one device. GoodSeed Plus ($4.99/month) adds unlimited children, co-parents, and real-time sync across every family member's device." } },
+        { "@type": "Question", "name": "Can my kids use it on their own devices?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, with GoodSeed Plus. Kids join with a 6-character family code on their own tablet or phone, check off their tasks, and everything syncs live with the parents' devices. A parent PIN protects admin actions on shared devices." } },
+        { "@type": "Question", "name": "Do I need to install anything?", "acceptedAnswer": { "@type": "Answer", "text": "No download required — GoodSeed runs in the browser. You can also install it to your phone's home screen like a native app, and it keeps working offline." } },
+        { "@type": "Question", "name": "What makes it faith-based?", "acceptedAnswer": { "@type": "Answer", "text": "GoodSeed is built around encouragement and Christian family values: a rotating daily Bible verse, kindness tasks, family shout-outs, and cooperative goals the whole family works toward together." } },
+        { "@type": "Question", "name": "Can I cancel anytime?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Plus is a monthly subscription managed through Stripe — cancel anytime from Settings → Manage billing, and your family keeps Plus until the end of the paid period." } }
+      ]
+    }
+    </script>
+
+    <!-- Returning app users skip the landing page -->
+    <script>
+      try {
+        if (location.pathname === '/' && localStorage.getItem('goodseed_current_user_id')) {
+          location.replace('/Dashboard')
+        }
+      } catch (e) { /* no localStorage — stay on landing */ }
+    </script>
+    <link rel="stylesheet" href="/src/index.css" />
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+  <body class="bg-white text-gray-900 antialiased">
+    <!-- Nav -->
+    <header class="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur">
+      <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6" aria-label="Main">
+        <a href="/" class="flex items-center gap-2">
+          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-seed-600 text-white">
+            <img src="/seedling.svg" alt="" class="h-5 w-5 brightness-0 invert" />
+          </span>
+          <span class="text-lg font-extrabold">GoodSeed</span>
+        </a>
+        <div class="hidden items-center gap-6 text-sm font-medium text-gray-600 md:flex">
+          <a href="#features" class="hover:text-seed-700">Features</a>
+          <a href="#how" class="hover:text-seed-700">How it works</a>
+          <a href="#pricing" class="hover:text-seed-700">Pricing</a>
+          <a href="#faq" class="hover:text-seed-700">FAQ</a>
+        </div>
+        <a href="/Welcome" class="rounded-lg bg-seed-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-seed-700">Open the app</a>
+      </nav>
+    </header>
+
+    <!-- Hero -->
+    <section class="relative overflow-hidden bg-gradient-to-b from-seed-50 to-white">
+      <div class="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
+        <div>
+          <p class="mb-4 inline-flex items-center gap-2 rounded-full bg-seed-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-seed-700">🌱 Faith-based family rewards</p>
+          <h1 class="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+            Plant good seeds,<br /><span class="text-seed-600">watch your family grow.</span>
+          </h1>
+          <p class="mt-5 max-w-xl text-lg text-gray-600">
+            GoodSeed turns chores into growth. Kids earn <b>Seeds</b> for completing tasks, build streaks and badges, and redeem them for rewards your family chooses — with a daily Bible verse to grow on.
+          </p>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <a href="/Welcome" class="rounded-xl bg-seed-600 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-seed-700">Start free — no card needed</a>
+            <a href="#how" class="rounded-xl border border-gray-300 px-6 py-3 text-base font-semibold text-gray-700 hover:bg-gray-50">See how it works</a>
+          </div>
+          <p class="mt-4 text-sm text-gray-500">Works on any device · Install like an app · Free plan forever</p>
+        </div>
+
+        <!-- App mockup (pure HTML, always crisp) -->
+        <div class="mx-auto w-full max-w-sm" aria-hidden="true">
+          <div class="rounded-[2rem] border-8 border-gray-900 bg-white shadow-2xl">
+            <div class="rounded-t-[1.5rem] bg-gradient-to-br from-seed-500 to-seed-700 p-5 text-white">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-2xl">🚀</div>
+                <div>
+                  <p class="text-sm text-white/80">Hi Sam! 👋</p>
+                  <p class="text-2xl font-extrabold">🌱 24 seeds</p>
+                </div>
+                <div class="ml-auto rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">🔥 6 days</div>
+              </div>
+            </div>
+            <div class="space-y-2.5 p-4">
+              <p class="text-xs font-bold uppercase text-gray-400">Today's tasks</p>
+              <div class="flex items-center gap-3 rounded-xl border border-gray-100 p-3">
+                <span class="text-xl">🧹</span>
+                <div class="flex-1"><p class="text-sm font-bold">Tidy Room</p><p class="text-xs text-gray-400">🌱 1 seed</p></div>
+                <span class="rounded-full bg-seed-600 px-3 py-1.5 text-xs font-bold text-white">Mark done</span>
+              </div>
+              <div class="flex items-center gap-3 rounded-xl border border-gray-100 p-3 opacity-70">
+                <span class="text-xl">📚</span>
+                <div class="flex-1"><p class="text-sm font-bold line-through">Read 20 Minutes</p><p class="text-xs text-gray-400">🌱 2 seeds</p></div>
+                <span class="rounded-full bg-seed-100 px-3 py-1.5 text-xs font-bold text-seed-700">✓ Done</span>
+              </div>
+              <div class="flex items-center gap-3 rounded-xl border border-gray-100 p-3">
+                <span class="text-xl">💝</span>
+                <div class="flex-1"><p class="text-sm font-bold">Help Set the Table</p><p class="text-xs text-gray-400">🌱 1 seed</p></div>
+                <span class="rounded-full bg-seed-600 px-3 py-1.5 text-xs font-bold text-white">Mark done</span>
+              </div>
+              <div class="rounded-xl bg-seed-50 p-3">
+                <p class="text-xs italic text-gray-600">“Let us not become weary in doing good…”</p>
+                <p class="mt-1 text-[10px] font-bold text-seed-700">GALATIANS 6:9</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <h2 class="text-center text-3xl font-extrabold sm:text-4xl">Everything a family needs to grow together</h2>
+      <p class="mx-auto mt-3 max-w-2xl text-center text-gray-600">A complete chore system, a motivating rewards economy, and gentle faith-centered encouragement — in one simple app.</p>
+      <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <div class="text-3xl">✅</div>
+          <h3 class="mt-3 font-bold">Tasks & approvals</h3>
+          <p class="mt-1 text-sm text-gray-600">Assign chores, homework, kindness, and exercise tasks — one-time, daily, or weekly. Kids mark them done (with optional photo proof); you approve with one tap.</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <div class="text-3xl">🌱</div>
+          <h3 class="mt-3 font-bold">Seeds & a rewards shop</h3>
+          <p class="mt-1 text-sm text-gray-600">Every task earns Seeds. Kids spend them in a rewards shop you control — extra screen time, choosing dinner, one-on-one time, anything you dream up.</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <div class="text-3xl">🔥</div>
+          <h3 class="mt-3 font-bold">Streaks, levels & badges</h3>
+          <p class="mt-1 text-sm text-gray-600">Daily streaks, XP levels, 12 earnable badges, and surprise Seed Packs keep kids coming back without nagging.</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <div class="text-3xl">📖</div>
+          <h3 class="mt-3 font-bold">Verse of the Day</h3>
+          <p class="mt-1 text-sm text-gray-600">A rotating daily Bible verse on hard work, kindness, and perseverance — encouragement the whole family shares.</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <div class="text-3xl">🐲</div>
+          <h3 class="mt-3 font-bold">Family goals & Weekly Boss</h3>
+          <p class="mt-1 text-sm text-gray-600">Co-op challenges: pool seeds toward a family movie night, or team up to defeat the Weekly Boss. Missions bundle tasks into bonus quests.</p>
+        </div>
+        <div class="rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <div class="text-3xl">📱</div>
+          <h3 class="mt-3 font-bold">Every device, always in sync</h3>
+          <p class="mt-1 text-sm text-gray-600">With Plus, both parents and every kid use their own phone or tablet — everything updates live. Install to the home screen; works offline.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how" class="bg-seed-50 py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 class="text-center text-3xl font-extrabold sm:text-4xl">Up and running in 3 minutes</h2>
+        <div class="mt-12 grid gap-8 md:grid-cols-3">
+          <div class="text-center">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-seed-600 text-xl font-extrabold text-white">1</div>
+            <h3 class="mt-4 font-bold">Create your family</h3>
+            <p class="mt-1 text-sm text-gray-600">Sign up free, add your kids, and pick from starter tasks — or write your own.</p>
+          </div>
+          <div class="text-center">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-seed-600 text-xl font-extrabold text-white">2</div>
+            <h3 class="mt-4 font-bold">Kids earn Seeds</h3>
+            <p class="mt-1 text-sm text-gray-600">They check off tasks on the family device or their own; you approve and Seeds land instantly.</p>
+          </div>
+          <div class="text-center">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-seed-600 text-xl font-extrabold text-white">3</div>
+            <h3 class="mt-4 font-bold">Redeem real rewards</h3>
+            <p class="mt-1 text-sm text-gray-600">Kids spend Seeds in your family's reward shop. Streaks, badges, and family goals keep the momentum.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <h2 class="text-center text-3xl font-extrabold sm:text-4xl">Simple pricing</h2>
+      <p class="mt-3 text-center text-gray-600">Start free. Upgrade when the whole family wants in.</p>
+      <div class="mx-auto mt-12 grid max-w-3xl gap-6 md:grid-cols-2">
+        <div class="rounded-2xl border border-gray-200 p-8">
+          <h3 class="text-sm font-bold uppercase text-gray-500">Free</h3>
+          <p class="mt-2 text-4xl font-extrabold">$0</p>
+          <ul class="mt-6 space-y-2.5 text-sm text-gray-700">
+            <li>✓ 1 parent, up to 2 children</li>
+            <li>✓ Full tasks, Seeds & rewards loop</li>
+            <li>✓ Streaks, badges & Verse of the Day</li>
+            <li>✓ Works on one device</li>
+            <li>✓ Backup & restore</li>
+          </ul>
+          <a href="/Welcome" class="mt-8 block rounded-xl border border-seed-600 px-6 py-3 text-center font-bold text-seed-700 hover:bg-seed-50">Start free</a>
+        </div>
+        <div class="relative rounded-2xl border-2 border-seed-500 bg-seed-50/50 p-8">
+          <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-seed-600 px-3 py-1 text-xs font-bold text-white">MOST POPULAR</span>
+          <h3 class="text-sm font-bold uppercase text-seed-700">✨ GoodSeed Plus</h3>
+          <p class="mt-2 text-4xl font-extrabold">$4.99<span class="text-base font-semibold text-gray-500">/month</span></p>
+          <ul class="mt-6 space-y-2.5 text-sm text-gray-700">
+            <li>✓ <b>Unlimited</b> children</li>
+            <li>✓ Both parents on their own devices</li>
+            <li>✓ Kids on their own tablets & phones</li>
+            <li>✓ Real-time multi-device sync</li>
+            <li>✓ Everything in Free · Cancel anytime</li>
+          </ul>
+          <a href="/Welcome" class="mt-8 block rounded-xl bg-seed-600 px-6 py-3 text-center font-bold text-white shadow-md hover:bg-seed-700">Get started</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="bg-gray-50 py-20">
+      <div class="mx-auto max-w-3xl px-4 sm:px-6">
+        <h2 class="text-center text-3xl font-extrabold sm:text-4xl">Questions & answers</h2>
+        <div class="mt-10 space-y-3">
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold marker:hidden">What is GoodSeed?</summary>
+            <p class="mt-2 text-sm text-gray-600">GoodSeed is a faith-based chore and rewards app for families. Parents create tasks, kids earn Seeds for completing them, and Seeds are redeemed for real rewards the family sets up — extra screen time, choosing dinner, a special outing. It layers in streaks, levels, badges, family goals, and a daily Bible verse.</p>
+          </details>
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold">Is it free?</summary>
+            <p class="mt-2 text-sm text-gray-600">Yes — the Free plan includes 1 parent, up to 2 children, and the full chore-and-rewards loop on one device, forever. GoodSeed Plus ($4.99/month) adds unlimited children, co-parents, and live sync across every family member's device.</p>
+          </details>
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold">Can my kids use their own devices?</summary>
+            <p class="mt-2 text-sm text-gray-600">With Plus, yes. Kids join with your 6-character family code on their tablet or phone and everything syncs in real time. A parent PIN keeps admin actions locked on shared devices.</p>
+          </details>
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold">Do I need to install anything?</summary>
+            <p class="mt-2 text-sm text-gray-600">No download needed — it runs in your browser. On a phone you can "Add to Home Screen" and it installs like a native app, offline included.</p>
+          </details>
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold">What makes it faith-based?</summary>
+            <p class="mt-2 text-sm text-gray-600">GoodSeed is built around encouragement and Christian family values: a rotating daily Bible verse, kindness tasks, family shout-outs, and cooperative goals the whole family works toward together.</p>
+          </details>
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold">Can I cancel anytime?</summary>
+            <p class="mt-2 text-sm text-gray-600">Yes. Plus is billed monthly through Stripe — cancel anytime in Settings → Manage billing and keep access through the end of your paid period.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="bg-gradient-to-br from-seed-600 to-seed-800 py-16 text-center text-white">
+      <div class="mx-auto max-w-2xl px-4">
+        <h2 class="text-3xl font-extrabold sm:text-4xl">Ready to plant the first seed?</h2>
+        <p class="mt-3 text-seed-100">Set up your family in about three minutes. Free forever, no card required.</p>
+        <a href="/Welcome" class="mt-8 inline-block rounded-xl bg-white px-8 py-3.5 text-base font-extrabold text-seed-700 shadow-lg hover:bg-seed-50">Start free 🌱</a>
+      </div>
+    </section>
+
+    <footer class="border-t border-gray-100 bg-white py-10">
+      <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
+        <div class="flex items-center gap-2">
+          <img src="/seedling.svg" alt="" class="h-5 w-5" />
+          <span class="font-bold">GoodSeed</span>
+          <span class="text-sm text-gray-400">· Plant good seeds, watch your family grow.</span>
+        </div>
+        <div class="flex gap-5 text-sm text-gray-500">
+          <a href="#features" class="hover:text-seed-700">Features</a>
+          <a href="#pricing" class="hover:text-seed-700">Pricing</a>
+          <a href="/Welcome" class="hover:text-seed-700">Sign in</a>
+        </div>
+        <p class="text-xs text-gray-400">© 2026 GoodSeed</p>
+      </div>
+    </footer>
   </body>
 </html>

@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /Dashboard
+Disallow: /Tasks
+Disallow: /Rewards
+Disallow: /Missions
+Disallow: /Family
+Disallow: /Reports
+Disallow: /TradingPost
+Disallow: /Settings
+Disallow: /ProfileSetup
+Disallow: /NotificationCenter
+Disallow: /ChildProfile/
+
+Sitemap: https://goodseed-family.netlify.app/sitemap.xml

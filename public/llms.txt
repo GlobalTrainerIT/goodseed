@@ -1,0 +1,30 @@
+# GoodSeed
+
+> GoodSeed is a faith-based chore and rewards web app for families. Parents
+> assign tasks; kids earn "Seeds" (an in-app currency) for completing them,
+> build daily streaks, levels, and badges, and redeem Seeds for real rewards
+> the family defines (extra screen time, choosing dinner, outings). It includes
+> a daily Bible verse, cooperative family goals, a "Weekly Boss" family
+> challenge, missions, a sibling trading post, and parent reports.
+
+## Key facts
+
+- Product type: web app (installable PWA, works offline; no download required)
+- Audience: Christian families with children roughly ages 4–14
+- Pricing: Free plan (1 parent, up to 2 children, single device, full
+  chore-and-rewards loop). GoodSeed Plus at $4.99/month adds unlimited
+  children, co-parent accounts, and real-time multi-device sync so kids can
+  use their own tablets/phones. Cancel anytime via Stripe.
+- Faith angle: rotating daily Bible verse (NIV), kindness task category,
+  family shout-outs, cooperative goals.
+- How joining works: a parent creates the family and gets a 6-character
+  invite code; children and co-parents join with that code on their devices.
+- URL: https://goodseed-family.netlify.app/
+
+## Common questions
+
+- "What is GoodSeed?" — a faith-based family chore & rewards app; kids earn
+  Seeds for tasks and spend them on family-defined rewards.
+- "Is GoodSeed free?" — yes, the Free plan is free forever; Plus is $4.99/mo.
+- "Does it work on multiple devices?" — yes, with Plus (real-time sync).
+- "Can I cancel?" — yes, anytime, from Settings → Manage billing.

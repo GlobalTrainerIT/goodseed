@@ -5,7 +5,9 @@
 [functions]
   directory = "netlify/functions"
 
+# App routes fall back to the SPA shell; "/" serves the static landing page
+# (Netlify only applies this rewrite when no file matches the path).
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "/app.html"
   status = 200
