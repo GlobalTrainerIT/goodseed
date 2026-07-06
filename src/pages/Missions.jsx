@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Rocket, Trash2, Trophy, Clock } from 'lucide-react'
+import { Plus, Rocket, Trash2, Trophy, Clock, Pencil } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import { Button, Card, ProgressBar, Dialog, Input, Textarea, Label, Badge } from '@/components/ui'
 import EmptyState from '@/components/shared/EmptyState'
 import SeedBadge from '@/components/shared/SeedBadge'
 import Confetti from '@/components/gamification/Confetti'
 import { useCollection, useCurrentUser } from '@/lib/hooks'
-import { create, remove, getById } from '@/lib/db'
+import { create, update, remove, getById } from '@/lib/db'
 import { missionProgress, completeMission } from '@/lib/domain'
 import { TASK_CATEGORIES } from '@/lib/constants'
 import { dueLabel } from '@/lib/utils'
@@ -17,6 +17,7 @@ export default function Missions() {
   const tasks = useCollection('tasks')
   useCollection('completions')
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [confetti, setConfetti] = useState(false)
 
   const isParent = user?.role === 'parent'
@@ -77,9 +78,16 @@ export default function Missions() {
                       </div>
                     </div>
                     {isParent && (
-                      <button onClick={() => remove('missions', m.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-red-500">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex gap-1">
+                        {!complete && (
+                          <button aria-label={`Edit ${m.title}`} onClick={() => { setEditing(m); setOpen(true) }} className="rounded-lg p-1.5 text-gray-400 hover:text-purple-600">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button aria-label={`Delete ${m.title}`} onClick={() => remove('missions', m.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   {m.description && <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">{m.description}</p>}
@@ -120,12 +128,20 @@ export default function Missions() {
         </div>
       )}
 
-      {isParent && <MissionForm open={open} onClose={() => setOpen(false)} tasks={famTasks} user={user} />}
+      {isParent && (
+        <MissionForm
+          open={open}
+          onClose={() => { setOpen(false); setEditing(null) }}
+          tasks={famTasks}
+          user={user}
+          mission={editing}
+        />
+      )}
     </div>
   )
 }
 
-function MissionForm({ open, onClose, tasks, user }) {
+function MissionForm({ open, onClose, tasks, user, mission }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [bonus, setBonus] = useState(10)
@@ -134,8 +150,15 @@ function MissionForm({ open, onClose, tasks, user }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (open) { setTitle(''); setDescription(''); setBonus(10); setDeadline(''); setSelected([]); setError('') }
-  }, [open])
+    if (open) {
+      setTitle(mission?.title || '')
+      setDescription(mission?.description || '')
+      setBonus(mission?.seed_bonus ?? 10)
+      setDeadline(mission?.deadline ? mission.deadline.slice(0, 10) : '')
+      setSelected(mission?.task_ids || [])
+      setError('')
+    }
+  }, [open, mission])
 
   function toggle(id) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -144,16 +167,18 @@ function MissionForm({ open, onClose, tasks, user }) {
   function save() {
     if (!title.trim()) return setError('Please enter a title.')
     if (selected.length < 2) return setError('Pick at least 2 tasks.')
-    create('missions', {
-      family_id: user.family_id,
+    const payload = {
       title: title.trim(),
       description: description.trim(),
       task_ids: selected,
       seed_bonus: Number(bonus) || 0,
       deadline: deadline ? new Date(deadline + 'T20:00:00').toISOString() : null,
-      status: 'active',
-      created_by: user.id,
-    })
+    }
+    if (mission) {
+      update('missions', mission.id, payload)
+    } else {
+      create('missions', { ...payload, family_id: user.family_id, status: 'active', created_by: user.id })
+    }
     onClose()
   }
 
@@ -161,9 +186,9 @@ function MissionForm({ open, onClose, tasks, user }) {
     <Dialog
       open={open}
       onClose={onClose}
-      title="New Mission"
+      title={mission ? 'Edit Mission' : 'New Mission'}
       description="Bundle 2–5 tasks into a challenge."
-      footer={<><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Create mission</Button></>}
+      footer={<><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>{mission ? 'Save changes' : 'Create mission'}</Button></>}
     >
       {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30">{error}</p>}
       <div className="space-y-4">

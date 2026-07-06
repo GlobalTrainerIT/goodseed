@@ -51,6 +51,49 @@ export async function startCheckout(family) {
 }
 
 /**
+ * Open the Stripe Customer Portal for a Plus family — cancel, update card,
+ * view invoices. The edge function verifies the caller is a family member.
+ */
+export async function openBillingPortal(family) {
+  if (!family || !billingConfigured()) return false
+  try {
+    const { data, error } = await supabase.functions.invoke('create-portal', {
+      body: {
+        family_id: family.id,
+        return_url: `${window.location.origin}/Settings`,
+      },
+    })
+    if (error || !data?.url) throw error || new Error(data?.error || 'No portal URL')
+    window.location.href = data.url
+    return true
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[billing] portal failed', e)
+    toast({ title: 'Could not open billing', message: 'Please try again in a moment.', type: 'error' })
+    return false
+  }
+}
+
+/**
+ * Full subscription details for a family (plan, status, renewal date).
+ * Returns null when unavailable.
+ */
+export async function fetchSubscription(familyId) {
+  if (!billingConfigured() || !familyId) return null
+  try {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('plan,status,current_period_end')
+      .eq('family_id', familyId)
+      .limit(1)
+    if (error || !data || !data.length) return null
+    return data[0]
+  } catch {
+    return null
+  }
+}
+
+/**
  * Read a family's plan from the server (subscriptions table), so it can't be
  * faked locally. Returns 'free' | 'plus' (defaults to family.plan / 'free' if
  * the backend or table isn't reachable). Used on load to reconcile plan state.

@@ -167,7 +167,12 @@ export default function Tasks() {
       )}
 
       <TaskForm open={formOpen} onClose={() => setFormOpen(false)} task={editing} />
-      <TaskDetailSheet task={detail} open={!!detail} onClose={() => setDetail(null)} />
+      <TaskDetailSheet
+        task={detail}
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        onEdit={(t) => { setDetail(null); openEdit(t) }}
+      />
       <DeleteConfirmDialog
         open={!!toDelete}
         onClose={() => setToDelete(null)}

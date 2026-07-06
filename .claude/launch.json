@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview", "--", "--port", "4173"],
       "port": 4173
+    },
+    {
+      "name": "global-trainer",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/andrew1h/Desktop/Global Trainer/project", "--", "--port", "4199"],
+      "port": 4199
     }
   ]
 }

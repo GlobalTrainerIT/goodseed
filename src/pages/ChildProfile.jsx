@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Minus } from 'lucide-react'
+import { ArrowLeft, Plus, Minus, Pencil } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
-import { Card, Button, Badge } from '@/components/ui'
+import { Card, Button, Badge, Dialog, Input, Label } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
+import AvatarEditor from '@/components/shared/AvatarEditor'
 import StreakDisplay from '@/components/gamification/StreakDisplay'
 import LevelProgress from '@/components/gamification/LevelProgress'
 import BadgeGrid from '@/components/gamification/BadgeGrid'
@@ -11,8 +12,10 @@ import ActivityFeed from '@/components/family/ActivityFeed'
 import AwardSeedsDialog from '@/components/family/AwardSeedsDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { useRecord, useCollection, useCurrentUser } from '@/lib/hooks'
-import { getById } from '@/lib/db'
+import { getById, update } from '@/lib/db'
 import { formatDate } from '@/lib/utils'
+import { AVATAR_COLORS } from '@/lib/constants'
+import { toast } from '@/lib/toast'
 
 export default function ChildProfile() {
   const { id } = useParams()
@@ -24,6 +27,7 @@ export default function ChildProfile() {
   const badges = useCollection('badges')
   const [award, setAward] = useState(false)
   const [deduct, setDeduct] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   if (!child) {
     return (
@@ -59,7 +63,8 @@ export default function ChildProfile() {
             </div>
           </div>
           {isParent && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="secondary" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4" /> Edit</Button>
               <Button variant="secondary" onClick={() => setAward(true)}><Plus className="h-4 w-4" /> Award</Button>
               <Button variant="secondary" onClick={() => setDeduct(true)}><Minus className="h-4 w-4" /> Deduct</Button>
             </div>
@@ -112,7 +117,52 @@ export default function ChildProfile() {
 
       <AwardSeedsDialog open={award} onClose={() => setAward(false)} child={child} mode="award" />
       <AwardSeedsDialog open={deduct} onClose={() => setDeduct(false)} child={child} mode="deduct" />
+      {isParent && <EditChildDialog open={editOpen} onClose={() => setEditOpen(false)} child={child} />}
     </div>
+  )
+}
+
+function EditChildDialog({ open, onClose, child }) {
+  const [name, setName] = useState(child.full_name || '')
+  const [age, setAge] = useState(child.age ?? '')
+  const [avatar, setAvatar] = useState({
+    emoji: child.avatar_emoji || '🙂',
+    color: child.avatar_bg_color || AVATAR_COLORS[0],
+    photo: child.avatar_photo || null,
+  })
+
+  function save() {
+    if (!name.trim()) return
+    update('users', child.id, {
+      full_name: name.trim(),
+      age: age === '' ? null : Number(age),
+      avatar_emoji: avatar.emoji,
+      avatar_bg_color: avatar.color,
+      avatar_photo: avatar.photo,
+    })
+    toast({ title: 'Profile updated!', emoji: '✅' })
+    onClose()
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={`Edit ${child.full_name}`}
+      description="Update their name, age, photo, or avatar."
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={save} disabled={!name.trim()}>Save</Button>
+        </>
+      }
+    >
+      <AvatarEditor value={avatar} onChange={setAvatar} />
+      <div className="mt-4 grid grid-cols-[1fr_6rem] gap-3">
+        <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div><Label>Age</Label><Input type="number" value={age} onChange={(e) => setAge(e.target.value)} /></div>
+      </div>
+    </Dialog>
   )
 }
 

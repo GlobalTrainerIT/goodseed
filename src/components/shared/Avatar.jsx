@@ -12,6 +12,24 @@ const sizeMap = {
 export default function Avatar({ user, size = 'md', className, ring }) {
   const bg = user?.avatar_bg_color || '#dcfce7'
   const emoji = user?.avatar_emoji
+  const photo = user?.avatar_photo
+
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={user?.full_name || 'Profile photo'}
+        title={user?.full_name}
+        className={cn(
+          'flex-shrink-0 rounded-full object-cover select-none',
+          sizeMap[size],
+          ring && 'ring-2 ring-white dark:ring-gray-900 ring-offset-2 ring-offset-seed-100',
+          className
+        )}
+      />
+    )
+  }
+
   return (
     <div
       className={cn(

@@ -10,7 +10,9 @@ import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hooks'
 import { updateSettings, remove, resetAll, update } from '@/lib/db'
 import { isPlus, planOf } from '@/lib/plan'
-import { fetchServerPlan } from '@/lib/billing'
+import { fetchServerPlan, fetchSubscription, openBillingPortal } from '@/lib/billing'
+import { formatDate } from '@/lib/utils'
+import { CreditCard } from 'lucide-react'
 import UpgradeDialog from '@/components/shared/UpgradeDialog'
 import { Sparkles } from 'lucide-react'
 import { buyStreakSaver } from '@/lib/domain'
@@ -53,6 +55,27 @@ export default function Settings() {
   const family = useRecord('families', user.family_id)
   const plus = isPlus(family)
   const [activating, setActivating] = useState(false)
+  const [subInfo, setSubInfo] = useState(null)
+  const [portalLoading, setPortalLoading] = useState(false)
+
+  // Load renewal details for the plan card (Plus families).
+  useEffect(() => {
+    let cancelled = false
+    if (plus && family?.id) {
+      fetchSubscription(family.id).then((s) => {
+        if (!cancelled) setSubInfo(s)
+      })
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [plus, family?.id])
+
+  async function handleManageBilling() {
+    setPortalLoading(true)
+    await openBillingPortal(family)
+    setPortalLoading(false)
+  }
 
   // Returning from Stripe checkout (?upgraded=1): the webhook can lag a few
   // seconds behind the redirect, so poll the server plan briefly and unlock the
@@ -201,9 +224,19 @@ export default function Settings() {
                   ? 'Unlimited children, co-parents, and multi-device sync.'
                   : `Up to ${planOf(family).maxChildren} children, single device.`}
               </p>
+              {plus && subInfo?.current_period_end && (
+                <p className="mt-0.5 text-xs text-gray-400">
+                  {subInfo.status === 'canceled' ? 'Access until' : 'Renews on'} {formatDate(subInfo.current_period_end)}
+                </p>
+              )}
             </div>
             {plus ? (
-              <span className="rounded-full bg-seed-100 px-3 py-1 text-xs font-bold text-seed-700 dark:bg-seed-900/40 dark:text-seed-300">Active</span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleManageBilling} disabled={portalLoading}>
+                  <CreditCard className="h-3.5 w-3.5" /> {portalLoading ? 'Opening…' : 'Manage billing'}
+                </Button>
+                <span className="rounded-full bg-seed-100 px-3 py-1 text-xs font-bold text-seed-700 dark:bg-seed-900/40 dark:text-seed-300">Active</span>
+              </div>
             ) : activating ? (
               <span className="animate-pulse rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Activating…</span>
             ) : (

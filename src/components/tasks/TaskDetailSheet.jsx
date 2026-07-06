@@ -8,11 +8,11 @@ import { getAll } from '@/lib/db'
 import { taskAppliesTo, latestCompletion, approveCompletion, rejectCompletion, completeTask } from '@/lib/domain'
 import { isOverdue, formatDate, dueLabel } from '@/lib/utils'
 import { useCurrentUser } from '@/lib/hooks'
-import { Check, X } from 'lucide-react'
+import { Check, X, Pencil } from 'lucide-react'
 import { isToday } from 'date-fns'
 import { safeParseDate } from '@/lib/utils'
 
-export default function TaskDetailSheet({ task, open, onClose }) {
+export default function TaskDetailSheet({ task, open, onClose, onEdit }) {
   const user = useCurrentUser()
   if (!task) return null
   const cat = TASK_CATEGORIES[task.category] || TASK_CATEGORIES.other
@@ -37,10 +37,15 @@ export default function TaskDetailSheet({ task, open, onClose }) {
         <div className="flex h-14 w-14 items-center justify-center rounded-xl text-3xl" style={{ backgroundColor: cat.color + '22' }}>
           {cat.emoji}
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{task.title}</h2>
           <p className="text-sm capitalize text-gray-400">{cat.label} · {task.frequency}</p>
         </div>
+        {user?.role === 'parent' && onEdit && (
+          <Button size="sm" variant="outline" onClick={() => onEdit(task)}>
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+        )}
       </div>
 
       {task.description && <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{task.description}</p>}
