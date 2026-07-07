@@ -153,14 +153,15 @@ export default function Welcome() {
     setMatchedFamily(family)
   }
 
-  function pickChild(childId) {
-    login(childId)
+  function pickProfile(userId) {
+    login(userId)
     navigate('/Dashboard')
   }
 
-  const childProfiles = matchedFamily
-    ? getAll('users').filter((u) => u.family_id === matchedFamily.id && u.role === 'child')
+  const familyProfiles = matchedFamily
+    ? getAll('users').filter((u) => u.family_id === matchedFamily.id)
     : []
+  const childProfiles = familyProfiles.filter((u) => u.role === 'child')
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-seed-100 to-seed-50 px-4 py-10 dark:from-gray-900 dark:to-gray-950">
@@ -179,25 +180,36 @@ export default function Welcome() {
       )}
 
       {mode === 'choose' && (
-        <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-2">
-          <button onClick={() => { setMode('parent'); setError('') }} className="group">
-            <Card className="flex h-full flex-col items-center gap-3 p-8 text-center transition hover:border-seed-400 hover:shadow-md">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-3xl dark:bg-amber-900/40">
-                <Crown className="h-8 w-8 text-amber-600" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">I'm a Parent</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Create a new family, or join one your co-parent started.</p>
-            </Card>
-          </button>
-          <button onClick={() => { setMode('child'); setError('') }} className="group">
-            <Card className="flex h-full flex-col items-center gap-3 p-8 text-center transition hover:border-seed-400 hover:shadow-md">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl dark:bg-blue-900/40">
-                <Baby className="h-8 w-8 text-blue-600" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">I'm a Child</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Enter your family code to see your tasks & seeds.</p>
-            </Card>
-          </button>
+        <div className="w-full max-w-2xl">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <button onClick={() => { setMode('parent'); setError('') }} className="group">
+              <Card className="flex h-full flex-col items-center gap-3 p-8 text-center transition hover:border-seed-400 hover:shadow-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-3xl dark:bg-amber-900/40">
+                  <Crown className="h-8 w-8 text-amber-600" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">I'm a Parent</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Create a new family, or join one your co-parent started.</p>
+              </Card>
+            </button>
+            <button onClick={() => { setMode('child'); setError('') }} className="group">
+              <Card className="flex h-full flex-col items-center gap-3 p-8 text-center transition hover:border-seed-400 hover:shadow-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl dark:bg-blue-900/40">
+                  <Baby className="h-8 w-8 text-blue-600" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">I'm a Child</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Enter your family code to see your tasks & seeds.</p>
+              </Card>
+            </button>
+          </div>
+          <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            Already part of a family?{' '}
+            <button
+              onClick={() => { setMode('signin'); setMatchedFamily(null); setError('') }}
+              className="font-bold text-seed-700 underline-offset-2 hover:underline dark:text-seed-400"
+            >
+              Sign back in
+            </button>
+          </p>
         </div>
       )}
 
@@ -292,6 +304,65 @@ export default function Welcome() {
         </Card>
       )}
 
+      {mode === 'signin' && !matchedFamily && (
+        <Card className="w-full max-w-md p-6">
+          <h2 className="mb-1 text-lg font-bold text-gray-900 dark:text-gray-100">Welcome back</h2>
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Enter your family code to find your profile.</p>
+          <form onSubmit={handleFindFamily} className="space-y-4">
+            <div>
+              <Label>Family invite code</Label>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g. DEMO01"
+                maxLength={6}
+                className="text-center text-lg font-bold tracking-widest"
+                autoFocus
+              />
+              <p className="mt-1.5 text-xs text-gray-400">It's the 6-character code your family uses to join. A parent can find it in Family → Invite.</p>
+            </div>
+            <Button type="submit" className="w-full" disabled={looking}>
+              {looking ? 'Looking…' : <>Find My Family <ArrowRight className="h-4 w-4" /></>}
+            </Button>
+            <button type="button" onClick={() => setMode('choose')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+          </form>
+        </Card>
+      )}
+
+      {mode === 'signin' && matchedFamily && (
+        <Card className="w-full max-w-md p-6">
+          <h2 className="mb-1 text-lg font-bold text-gray-900 dark:text-gray-100">{matchedFamily.name}</h2>
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Who are you? Tap your profile to sign back in.</p>
+          <div className="space-y-2">
+            {familyProfiles.map((member) => (
+              <button
+                key={member.id}
+                onClick={() => pickProfile(member.id)}
+                className="flex w-full items-center gap-3 rounded-xl border border-gray-100 p-3 text-left transition hover:border-seed-400 hover:bg-seed-50 dark:border-gray-800 dark:hover:bg-gray-800"
+              >
+                <Avatar user={member} size="md" />
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{member.full_name}</p>
+                  <p className="text-xs text-gray-400">{member.role === 'parent' ? 'Parent' : member.age ? `Age ${member.age}` : 'Child'}</p>
+                </div>
+                {member.role === 'parent' && <Crown className="h-4 w-4 text-amber-500" />}
+                <ArrowRight className="h-4 w-4 text-gray-300" />
+              </button>
+            ))}
+            {familyProfiles.length === 0 && (
+              <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500 dark:bg-gray-800">
+                We found your family, but no profiles synced to this device yet. Multi-device sync is a Plus feature — on the Free plan your profiles live on the device where the family was created.
+              </p>
+            )}
+          </div>
+          <button type="button" onClick={() => setMatchedFamily(null)} className="mt-4 flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+            <ArrowLeft className="h-4 w-4" /> Use a different code
+          </button>
+        </Card>
+      )}
+
       {mode === 'child' && !matchedFamily && (
         <Card className="w-full max-w-md p-6">
           <form onSubmit={handleFindFamily} className="space-y-4">
@@ -325,7 +396,7 @@ export default function Welcome() {
             {childProfiles.map((child) => (
               <button
                 key={child.id}
-                onClick={() => pickChild(child.id)}
+                onClick={() => pickProfile(child.id)}
                 className="flex w-full items-center gap-3 rounded-xl border border-gray-100 p-3 text-left transition hover:border-seed-400 hover:bg-seed-50 dark:border-gray-800 dark:hover:bg-gray-800"
               >
                 <Avatar user={child} size="md" />
