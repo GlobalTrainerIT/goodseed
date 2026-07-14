@@ -28,3 +28,7 @@
 - "Is GoodSeed free?" — yes, the Free plan is free forever; Plus is $4.99/mo.
 - "Does it work on multiple devices?" — yes, with Plus (real-time sync).
 - "Can I cancel?" — yes, anytime, from Settings → Manage billing.
+- "Can coaches or teachers use it?" — GoodSeed for Teams & Classrooms is in
+  development: rosters built from kid codes, quick point awards/deductions at
+  practice or in class, team points kept separate from family Seeds. A waitlist
+  is open on the homepage.

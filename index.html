@@ -78,6 +78,7 @@
           <a href="#features" class="hover:text-seed-700">Features</a>
           <a href="#how" class="hover:text-seed-700">How it works</a>
           <a href="#pricing" class="hover:text-seed-700">Pricing</a>
+          <a href="#teams" class="hover:text-seed-700">Teams</a>
           <a href="#faq" class="hover:text-seed-700">FAQ</a>
         </div>
         <div class="flex items-center gap-4">
@@ -240,6 +241,60 @@
       </div>
     </section>
 
+    <!-- Teams & Classrooms waitlist -->
+    <section id="teams" class="bg-gradient-to-b from-white to-seed-50 py-20">
+      <div class="mx-auto max-w-3xl px-4 text-center sm:px-6">
+        <p class="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-700">🏅 Coming soon</p>
+        <h2 class="text-3xl font-extrabold sm:text-4xl">GoodSeed for Teams &amp; Classrooms</h2>
+        <p class="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
+          The same points-and-rewards system your family loves — for coaches, teachers, and
+          youth leaders. Add kids to your roster with their GoodSeed code, award or deduct
+          points right from the sideline or the front of the class, and hand the roster back
+          when the season ends.
+        </p>
+        <ul class="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-x-8 gap-y-2 text-sm font-medium text-gray-700">
+          <li>✓ Quick-tap points at practice</li>
+          <li>✓ Roster by kid code — no emails, no passwords</li>
+          <li>✓ Team points stay separate from family Seeds</li>
+          <li>✓ Built for churches, Christian schools &amp; youth sports</li>
+        </ul>
+        <form
+          name="teams-waitlist"
+          method="POST"
+          data-netlify="true"
+          netlify-honeypot="bot-field"
+          class="mx-auto mt-8 flex max-w-xl flex-col gap-3 sm:flex-row"
+        >
+          <input type="hidden" name="form-name" value="teams-waitlist" />
+          <p class="hidden"><label>Don't fill this out: <input name="bot-field" /></label></p>
+          <input
+            type="email"
+            name="email"
+            required
+            placeholder="you@example.com"
+            class="w-full flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-seed-500 focus:outline-none focus:ring-2 focus:ring-seed-200"
+          />
+          <select
+            name="role"
+            class="rounded-xl border border-gray-300 px-4 py-3 text-base text-gray-700 focus:border-seed-500 focus:outline-none focus:ring-2 focus:ring-seed-200"
+          >
+            <option value="coach">I'm a coach</option>
+            <option value="teacher">I'm a teacher</option>
+            <option value="church">Church / youth leader</option>
+            <option value="school">School admin</option>
+            <option value="other">Other</option>
+          </select>
+          <button type="submit" class="rounded-xl bg-seed-600 px-6 py-3 text-base font-bold text-white shadow-md hover:bg-seed-700">
+            Join the waitlist
+          </button>
+        </form>
+        <p id="waitlist-thanks" class="mt-4 hidden text-base font-semibold text-seed-700">
+          🎉 You're on the list! We'll email you when Teams launches.
+        </p>
+        <p class="mt-4 text-sm text-gray-500">Be first in line — waitlist members get early access and founder pricing.</p>
+      </div>
+    </section>
+
     <!-- FAQ -->
     <section id="faq" class="bg-gray-50 py-20">
       <div class="mx-auto max-w-3xl px-4 sm:px-6">
@@ -264,6 +319,10 @@
           <details class="group rounded-xl border border-gray-200 bg-white p-5">
             <summary class="cursor-pointer list-none font-bold">What makes it faith-based?</summary>
             <p class="mt-2 text-sm text-gray-600">GoodSeed is built around encouragement and Christian family values: a rotating daily Bible verse, kindness tasks, family shout-outs, and cooperative goals the whole family works toward together.</p>
+          </details>
+          <details class="group rounded-xl border border-gray-200 bg-white p-5">
+            <summary class="cursor-pointer list-none font-bold">Can coaches or teachers use GoodSeed?</summary>
+            <p class="mt-2 text-sm text-gray-600">It's coming! GoodSeed for Teams &amp; Classrooms will let coaches, teachers, and youth leaders build a roster with each kid's GoodSeed code, award or deduct points during practice or class, and keep team points separate from family Seeds. <a href="#teams" class="font-semibold text-seed-700 hover:underline">Join the waitlist</a> for early access.</p>
           </details>
           <details class="group rounded-xl border border-gray-200 bg-white p-5">
             <summary class="cursor-pointer list-none font-bold">Can I cancel anytime?</summary>
@@ -292,10 +351,38 @@
         <div class="flex gap-5 text-sm text-gray-500">
           <a href="#features" class="hover:text-seed-700">Features</a>
           <a href="#pricing" class="hover:text-seed-700">Pricing</a>
+          <a href="#teams" class="hover:text-seed-700">Teams</a>
           <a href="/Welcome" class="hover:text-seed-700">Sign in</a>
         </div>
         <p class="text-xs text-gray-400">© 2026 GoodSeed</p>
       </div>
     </footer>
+
+    <script>
+      // Submit the Teams waitlist form to Netlify Forms without leaving the page.
+      const waitlistForm = document.querySelector('form[name="teams-waitlist"]')
+      if (waitlistForm) {
+        waitlistForm.addEventListener('submit', async (e) => {
+          e.preventDefault()
+          const btn = waitlistForm.querySelector('button[type="submit"]')
+          btn.disabled = true
+          btn.textContent = 'Joining…'
+          try {
+            const res = await fetch('/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams(new FormData(waitlistForm)).toString(),
+            })
+            if (!res.ok) throw new Error('bad status')
+            waitlistForm.classList.add('hidden')
+            document.getElementById('waitlist-thanks').classList.remove('hidden')
+          } catch {
+            btn.disabled = false
+            btn.textContent = 'Join the waitlist'
+            alert("Sorry, that didn't go through — please try again.")
+          }
+        })
+      }
+    </script>
   </body>
 </html>
