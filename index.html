@@ -260,13 +260,9 @@
         </ul>
         <form
           name="teams-waitlist"
-          method="POST"
-          data-netlify="true"
-          netlify-honeypot="bot-field"
           class="mx-auto mt-8 flex max-w-xl flex-col gap-3 sm:flex-row"
         >
-          <input type="hidden" name="form-name" value="teams-waitlist" />
-          <p class="hidden"><label>Don't fill this out: <input name="bot-field" /></label></p>
+          <p class="hidden"><label>Don't fill this out: <input name="bot-field" tabindex="-1" autocomplete="off" /></label></p>
           <input
             type="email"
             name="email"
@@ -359,21 +355,29 @@
     </footer>
 
     <script>
-      // Submit the Teams waitlist form to Netlify Forms without leaving the page.
+      // Submit the Teams waitlist straight into our database (insert-only table;
+      // the public key can add a signup but can never read the list back).
       const waitlistForm = document.querySelector('form[name="teams-waitlist"]')
       if (waitlistForm) {
         waitlistForm.addEventListener('submit', async (e) => {
           e.preventDefault()
+          const data = new FormData(waitlistForm)
+          if (data.get('bot-field')) return // honeypot: silently drop bots
           const btn = waitlistForm.querySelector('button[type="submit"]')
           btn.disabled = true
           btn.textContent = 'Joining…'
           try {
-            const res = await fetch('/', {
+            const res = await fetch('https://jedqarsyvrpicvlztyrm.supabase.co/rest/v1/waitlist', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams(new FormData(waitlistForm)).toString(),
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: 'sb_publishable_DX-QsiePkj_AmvaGDnoxXw_9y1CM87H',
+                Prefer: 'return=minimal',
+              },
+              body: JSON.stringify({ email: data.get('email'), role: data.get('role') }),
             })
-            if (!res.ok) throw new Error('bad status')
+            // 201 = added; 409 = this email is already on the list. Both are a win.
+            if (!res.ok && res.status !== 409) throw new Error('bad status')
             waitlistForm.classList.add('hidden')
             document.getElementById('waitlist-thanks').classList.remove('hidden')
           } catch {
