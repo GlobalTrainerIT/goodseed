@@ -9,6 +9,7 @@ import { useRef } from 'react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hooks'
 import { updateSettings, remove, resetAll, update } from '@/lib/db'
+import { deleteFamilyFromCloud } from '@/lib/sync'
 import { isPlus, planOf } from '@/lib/plan'
 import { fetchServerPlan, fetchSubscription, openBillingPortal } from '@/lib/billing'
 import { formatDate } from '@/lib/utils'
@@ -156,8 +157,13 @@ export default function Settings() {
     logout()
     navigate('/Welcome')
   }
-  function handleDeleteAccount() {
+  async function handleDeleteAccount() {
     if (isParent) {
+      // Cloud first, then local — "delete all data" must include the synced copy.
+      const cloudOk = await deleteFamilyFromCloud(user.family_id)
+      if (!cloudOk) {
+        toast({ title: "Couldn't reach the cloud", message: 'Local data was deleted. Cloud copy will need another try while online.', emoji: '⚠️' })
+      }
       resetAll()
       logout()
       navigate('/Welcome')

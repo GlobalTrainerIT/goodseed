@@ -335,6 +335,27 @@ export async function teardownSync() {
   setStatus(supabaseEnabled ? 'connecting' : 'local')
 }
 
+// Erase every cloud record for a family — the server-side half of "delete the
+// entire family". Called before the local wipe so a parent's delete honors the
+// right to remove their children's data everywhere, not just on this device.
+export async function deleteFamilyFromCloud(familyId) {
+  if (!supabaseEnabled || !familyId || familyId === DEMO_FAMILY) return true
+  try {
+    await teardownSync() // stop realtime/push first so nothing re-uploads
+    const session = await ensureSession()
+    if (!session) return false
+    const { error } = await supabase.from(RECORDS_TABLE).delete().eq('family_id', familyId)
+    if (error) {
+      console.warn('[sync] cloud delete failed', error.message)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.warn('[sync] cloud delete failed', e)
+    return false
+  }
+}
+
 export function isSyncing() {
   return active()
 }
