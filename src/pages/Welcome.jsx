@@ -210,6 +210,11 @@ export default function Welcome() {
               Sign back in
             </button>
           </p>
+          <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+            By continuing you agree to our{' '}
+            <a href="/terms.html" className="underline hover:text-gray-600">Terms</a> and{' '}
+            <a href="/privacy.html" className="underline hover:text-gray-600">Privacy Policy</a>.
+          </p>
         </div>
       )}
 
