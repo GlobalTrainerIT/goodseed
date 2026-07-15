@@ -6,7 +6,7 @@ import Avatar from '@/components/shared/Avatar'
 import { getAll, create } from '@/lib/db'
 import { login } from '@/lib/auth'
 import { findFamilyByInviteCode, loadFamilyData } from '@/lib/sync'
-import { isPlus, GROUP_TYPES, TEAMS_PLAN } from '@/lib/plan'
+import { isPlus, teamsActive, GROUP_TYPES, TEAMS_PLAN } from '@/lib/plan'
 import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
 import { updateSettings } from '@/lib/db'
@@ -156,8 +156,13 @@ export default function Welcome() {
       setError('No family found with that code. Double-check and try again.')
       return
     }
-    if (!isPlus(family)) {
-      setError('Co-parents are a GoodSeed Plus feature. Ask the family owner to upgrade to Plus, then try again.')
+    const groupJoin = family.kind === 'group'
+    if (groupJoin ? !teamsActive(family) : !isPlus(family)) {
+      setError(
+        groupJoin
+          ? "This group's Teams trial has ended. Ask the group leader to subscribe, then try again."
+          : 'Co-parents are a GoodSeed Plus feature. Ask the family owner to upgrade to Plus, then try again.'
+      )
       return
     }
     const parent = create('users', {

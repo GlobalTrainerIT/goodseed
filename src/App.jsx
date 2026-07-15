@@ -8,7 +8,7 @@ import { useCurrentUser } from '@/lib/hooks'
 import { runDailyMaintenance } from '@/lib/domain'
 import { initSync, teardownSync } from '@/lib/sync'
 import { getById, update } from '@/lib/db'
-import { isPlus, familyPlan } from '@/lib/plan'
+import { isPlus, familyPlan, teamsActive } from '@/lib/plan'
 import { fetchServerPlan } from '@/lib/billing'
 
 // Route-level code splitting keeps the initial bundle small; heavy pages
@@ -70,9 +70,10 @@ export default function App() {
           const fam = getById('families', fid)
           if (fam && familyPlan(fam) !== serverPlan) update('families', fid, { plan: serverPlan })
         }
-        // Cloud sync is a Plus feature; Free families stay on-device.
+        // Cloud sync is a Plus feature for families; groups sync while their
+        // Teams plan or trial is active. Free families stay on-device.
         const fam = getById('families', fid)
-        if (!cancelled && isPlus(fam)) await initSync(fid)
+        if (!cancelled && (isPlus(fam) || teamsActive(fam))) await initSync(fid)
         else await teardownSync()
         if (!cancelled) runDailyMaintenance(fid)
       } catch (e) {
