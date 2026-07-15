@@ -26,6 +26,8 @@ const TradingPost = lazy(() => import('@/pages/TradingPost'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const NotificationCenter = lazy(() => import('@/pages/NotificationCenter'))
 const ChildProfile = lazy(() => import('@/pages/ChildProfile'))
+const Roster = lazy(() => import('@/pages/Roster'))
+const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
 
 function RequireAuth({ children }) {
   const user = useCurrentUser()
@@ -98,6 +100,8 @@ export default function App() {
             }
           >
             <Route path="/Dashboard" element={<Dashboard />} />
+            <Route path="/Roster" element={<RequireParent><Roster /></RequireParent>} />
+            <Route path="/Leaderboard" element={<Leaderboard />} />
             <Route path="/Tasks" element={<Tasks />} />
             <Route path="/Rewards" element={<Rewards />} />
             <Route path="/Missions" element={<Missions />} />

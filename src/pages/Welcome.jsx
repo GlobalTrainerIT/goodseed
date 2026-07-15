@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Sprout, Crown, Baby, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Sprout, Crown, Baby, Trophy, ArrowLeft, ArrowRight } from 'lucide-react'
 import { Card, Button, Input, Label } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import { getAll, create } from '@/lib/db'
 import { login } from '@/lib/auth'
 import { findFamilyByInviteCode, loadFamilyData } from '@/lib/sync'
-import { isPlus } from '@/lib/plan'
+import { isPlus, GROUP_TYPES, TEAMS_PLAN } from '@/lib/plan'
 import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
 import { updateSettings } from '@/lib/db'
@@ -26,6 +26,10 @@ export default function Welcome() {
   const [code, setCode] = useState('')
   const [matchedFamily, setMatchedFamily] = useState(null)
   const [looking, setLooking] = useState(false)
+
+  // coach fields
+  const [groupName, setGroupName] = useState('')
+  const [groupType, setGroupType] = useState('class')
 
   useEffect(() => {
     const join = params.get('join')
@@ -75,6 +79,54 @@ export default function Welcome() {
     })
     login(parent.id)
     navigate('/Onboarding', { state: { familyId: family.id } })
+  }
+
+  // A coach/teacher creating a classroom, team, daycare, or church group.
+  // Groups reuse the family engine (kind: 'group') with points-flavored naming.
+  function handleCreateGroup(e) {
+    e.preventDefault()
+    setError('')
+    if (!pName.trim() || !groupName.trim()) {
+      setError('Please enter your name and a group name.')
+      return
+    }
+    const type = GROUP_TYPES.find((t) => t.id === groupType) || GROUP_TYPES[0]
+    const group = create('families', {
+      name: groupName.trim(),
+      invite_code: generateInviteCode(),
+      avatar_emoji: type.emoji,
+      plan: 'free',
+      kind: 'group',
+      group_type: type.id,
+    })
+    const coach = create('users', {
+      family_id: group.id,
+      full_name: pName.trim(),
+      email: pEmail.trim(),
+      role: 'parent',
+      avatar_emoji: '🏅',
+      avatar_bg_color: '#bfdbfe',
+      seed_balance: 0,
+      total_seeds_earned: 0,
+      streak_current: 0,
+      streak_longest: 0,
+      streak_savers_available: 0,
+      xp: 0,
+      level: 1,
+    })
+    updateSettings({
+      family_id: group.id,
+      seedName: 'Points',
+      seedNameSingular: 'Point',
+      allowStreakSavers: false,
+      enableSeedPacks: false,
+      parentPin: '',
+      parentPinEnabled: false,
+      leaderboardMode: 'full',
+      notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS },
+    })
+    login(coach.id)
+    navigate('/Roster')
   }
 
   // A second parent joining an existing family on their own device.
@@ -180,10 +232,10 @@ export default function Welcome() {
       )}
 
       {mode === 'choose' && (
-        <div className="w-full max-w-2xl">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="w-full max-w-3xl">
+          <div className="grid gap-4 sm:grid-cols-3">
             <button onClick={() => { setMode('parent'); setError('') }} className="group">
-              <Card className="flex h-full flex-col items-center gap-3 p-8 text-center transition hover:border-seed-400 hover:shadow-md">
+              <Card className="flex h-full flex-col items-center gap-3 p-6 text-center transition hover:border-seed-400 hover:shadow-md">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-3xl dark:bg-amber-900/40">
                   <Crown className="h-8 w-8 text-amber-600" />
                 </div>
@@ -192,12 +244,21 @@ export default function Welcome() {
               </Card>
             </button>
             <button onClick={() => { setMode('child'); setError('') }} className="group">
-              <Card className="flex h-full flex-col items-center gap-3 p-8 text-center transition hover:border-seed-400 hover:shadow-md">
+              <Card className="flex h-full flex-col items-center gap-3 p-6 text-center transition hover:border-seed-400 hover:shadow-md">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl dark:bg-blue-900/40">
                   <Baby className="h-8 w-8 text-blue-600" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">I'm a Child</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Enter your family code to see your tasks & seeds.</p>
+              </Card>
+            </button>
+            <button onClick={() => { setMode('coach'); setError('') }} className="group">
+              <Card className="flex h-full flex-col items-center gap-3 p-6 text-center transition hover:border-seed-400 hover:shadow-md">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-3xl dark:bg-purple-900/40">
+                  <Trophy className="h-8 w-8 text-purple-600" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Coach or Teacher</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Run points for a class, team, daycare, or youth group.</p>
               </Card>
             </button>
           </div>
@@ -303,6 +364,54 @@ export default function Welcome() {
               {looking ? 'Looking…' : <>Join Family <ArrowRight className="h-4 w-4" /></>}
             </Button>
             <button type="button" onClick={() => setMode('parent')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+          </form>
+        </Card>
+      )}
+
+      {mode === 'coach' && (
+        <Card className="w-full max-w-md p-6">
+          <h2 className="mb-1 text-lg font-bold text-gray-900 dark:text-gray-100">Set up your group</h2>
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+            Free for {TEAMS_PLAN.trialDays} days — no card needed. Add your roster and start awarding points in the next two minutes.
+          </p>
+          <form onSubmit={handleCreateGroup} className="space-y-4">
+            <div>
+              <Label>Your name</Label>
+              <Input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="e.g. Coach Mike" autoFocus />
+            </div>
+            <div>
+              <Label>Group name</Label>
+              <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="e.g. Tigers Basketball, Room 12" />
+            </div>
+            <div>
+              <Label>What kind of group?</Label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                {GROUP_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setGroupType(t.id)}
+                    className={`flex items-center gap-2 rounded-xl border p-2.5 text-left text-sm font-medium transition ${
+                      groupType === t.id
+                        ? 'border-seed-500 bg-seed-50 text-seed-800 dark:bg-seed-900/30 dark:text-seed-200'
+                        : 'border-gray-200 text-gray-600 hover:border-seed-300 dark:border-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <span className="text-lg">{t.emoji}</span> {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>Email (optional)</Label>
+              <Input type="email" value={pEmail} onChange={(e) => setPEmail(e.target.value)} placeholder="you@example.com" />
+            </div>
+            <Button type="submit" className="w-full">
+              Create Group <ArrowRight className="h-4 w-4" />
+            </Button>
+            <button type="button" onClick={() => setMode('choose')} className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
           </form>

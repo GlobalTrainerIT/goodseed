@@ -18,6 +18,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "/Users/andrew1h/Desktop/Global Trainer/project", "--", "--port", "4199"],
       "port": 4199
+    },
+    {
+      "name": "global-trainer-2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/andrew1h/Desktop/Global Trainer/project", "--", "--port", "4198"],
+      "port": 4198
+    },
+    {
+      "name": "global-trainer-static",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--prefix", "/Users/andrew1h/Desktop/Global Trainer/project", "--", "--port", "4197"],
+      "port": 4197
     }
   ]
 }

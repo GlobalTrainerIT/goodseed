@@ -1,14 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Sprout, LogOut, Moon, Sun } from 'lucide-react'
-import { PARENT_NAV } from './navConfig'
+import { PARENT_NAV, GROUP_NAV } from './navConfig'
 import Avatar from '@/components/shared/Avatar'
-import { useCurrentUser } from '@/lib/hooks'
+import { useCurrentUser, useRecord } from '@/lib/hooks'
+import { isGroup } from '@/lib/plan'
 import { logout } from '@/lib/auth'
 import { useTheme, toggleTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 
 export default function Sidebar() {
   const user = useCurrentUser()
+  const family = useRecord('families', user?.family_id)
+  const nav = isGroup(family) ? GROUP_NAV : PARENT_NAV
   const theme = useTheme()
   const navigate = useNavigate()
 
@@ -30,7 +33,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {PARENT_NAV.map((item) => (
+        {nav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -61,7 +64,7 @@ export default function Sidebar() {
           <Avatar user={user} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{user?.full_name}</p>
-            <p className="truncate text-xs capitalize text-gray-400">{user?.role}</p>
+            <p className="truncate text-xs capitalize text-gray-400">{isGroup(family) ? 'Coach' : user?.role}</p>
           </div>
           <button onClick={handleLogout} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-200 hover:text-red-500 dark:hover:bg-gray-700" title="Sign out">
             <LogOut className="h-4 w-4" />

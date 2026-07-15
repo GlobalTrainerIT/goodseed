@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { ListChecks, Clock, Gift, Award, Plus, CheckCircle2, BarChart3, UserPlus } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import StatCard from '@/components/dashboard/StatCard'
@@ -10,11 +10,13 @@ import ChildHome from '@/components/child/ChildHome'
 import { Button } from '@/components/ui'
 import TaskForm from '@/components/tasks/TaskForm'
 import RewardForm from '@/components/rewards/RewardForm'
-import { useCollection, useCurrentUser } from '@/lib/hooks'
+import { useCollection, useCurrentUser, useRecord } from '@/lib/hooks'
+import { isGroup } from '@/lib/plan'
 import { formatDate } from '@/lib/utils'
 
 export default function Dashboard() {
   const user = useCurrentUser()
+  const family = useRecord('families', user?.family_id)
   const navigate = useNavigate()
   const tasks = useCollection('tasks')
   const completions = useCollection('completions')
@@ -24,6 +26,8 @@ export default function Dashboard() {
   const [rewardOpen, setRewardOpen] = useState(false)
 
   if (!user) return null
+  // Coaches/teachers live on the roster, not the family dashboard.
+  if (isGroup(family)) return <Navigate to="/Roster" replace />
   if (user.role === 'child') return <ChildHome child={user} />
 
   const fam = (arr) => arr.filter((x) => x.family_id === user.family_id)

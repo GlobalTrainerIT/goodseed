@@ -3,8 +3,9 @@ import Sidebar from './Sidebar'
 import MobileHeader from './MobileHeader'
 import BottomTabBar from './BottomTabBar'
 import AnnouncementBanner from './AnnouncementBanner'
-import { PARENT_TABS, CHILD_TABS } from './navConfig'
-import { useCurrentUser, useSettings } from '@/lib/hooks'
+import { PARENT_TABS, CHILD_TABS, GROUP_TABS } from './navConfig'
+import { useCurrentUser, useSettings, useRecord } from '@/lib/hooks'
+import { isGroup } from '@/lib/plan'
 import ErrorBoundary from '@/lib/ErrorBoundary'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import ParentPinGate from './ParentPinGate'
@@ -15,8 +16,9 @@ export default function Layout() {
   const user = useCurrentUser()
   const settings = useSettings()
   const unlocked = useUnlocked()
+  const family = useRecord('families', user?.family_id)
   const isChild = user?.role === 'child'
-  const tabs = isChild ? CHILD_TABS : PARENT_TABS
+  const tabs = isGroup(family) ? GROUP_TABS : isChild ? CHILD_TABS : PARENT_TABS
 
   // Parent PIN gate for shared-device mode.
   if (!isChild && settings.parentPinEnabled && settings.parentPin && !unlocked) {

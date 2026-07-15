@@ -9,6 +9,8 @@ import {
   Settings,
   Home,
   User,
+  Trophy,
+  ClipboardList,
 } from 'lucide-react'
 
 export const PARENT_NAV = [
@@ -28,6 +30,25 @@ export const PARENT_TABS = [
   { label: 'Rewards', to: '/Rewards', icon: Gift },
   { label: 'Trade', to: '/TradingPost', icon: Store },
   { label: 'Family', to: '/Family', icon: Users },
+]
+
+// Coach/teacher view for classroom & team groups: roster-first, no
+// family-specific surfaces (Missions, Trading Post).
+export const GROUP_NAV = [
+  { label: 'Roster', to: '/Roster', icon: ClipboardList },
+  { label: 'Leaderboard', to: '/Leaderboard', icon: Trophy },
+  { label: 'Tasks', to: '/Tasks', icon: ListChecks },
+  { label: 'Rewards', to: '/Rewards', icon: Gift },
+  { label: 'Reports', to: '/Reports', icon: BarChart3 },
+  { label: 'Settings', to: '/Settings', icon: Settings },
+]
+
+export const GROUP_TABS = [
+  { label: 'Roster', to: '/Roster', icon: ClipboardList },
+  { label: 'Leaders', to: '/Leaderboard', icon: Trophy },
+  { label: 'Tasks', to: '/Tasks', icon: ListChecks },
+  { label: 'Rewards', to: '/Rewards', icon: Gift },
+  { label: 'Settings', to: '/Settings', icon: Settings },
 ]
 
 export const CHILD_TABS = [
