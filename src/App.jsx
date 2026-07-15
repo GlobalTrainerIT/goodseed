@@ -8,7 +8,7 @@ import { useCurrentUser } from '@/lib/hooks'
 import { runDailyMaintenance } from '@/lib/domain'
 import { initSync, teardownSync } from '@/lib/sync'
 import { getById, update } from '@/lib/db'
-import { isPlus, familyPlan, teamsActive } from '@/lib/plan'
+import { isPlus, teamsActive } from '@/lib/plan'
 import { fetchServerPlan } from '@/lib/billing'
 
 // Route-level code splitting keeps the initial bundle small; heavy pages
@@ -28,6 +28,7 @@ const NotificationCenter = lazy(() => import('@/pages/NotificationCenter'))
 const ChildProfile = lazy(() => import('@/pages/ChildProfile'))
 const Roster = lazy(() => import('@/pages/Roster'))
 const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
+const Admin = lazy(() => import('@/pages/Admin'))
 
 function RequireAuth({ children }) {
   const user = useCurrentUser()
@@ -68,12 +69,18 @@ export default function App() {
         const serverPlan = await fetchServerPlan(fid)
         if (!cancelled && serverPlan) {
           const fam = getById('families', fid)
-          if (fam && familyPlan(fam) !== serverPlan) update('families', fid, { plan: serverPlan })
+          if (fam && (fam.plan || 'free') !== serverPlan) update('families', fid, { plan: serverPlan })
         }
         // Cloud sync is a Plus feature for families; groups sync while their
         // Teams plan or trial is active. Free families stay on-device.
         const fam = getById('families', fid)
         if (!cancelled && (isPlus(fam) || teamsActive(fam))) await initSync(fid)
+        // Re-assert the server-authoritative plan after sync: a stale remote
+        // family row must not downgrade what Stripe or the owner granted.
+        if (!cancelled && serverPlan) {
+          const after = getById('families', fid)
+          if (after && (after.plan || 'free') !== serverPlan) update('families', fid, { plan: serverPlan })
+        }
         else await teardownSync()
         if (!cancelled) runDailyMaintenance(fid)
       } catch (e) {
@@ -92,6 +99,7 @@ export default function App() {
         <Routes>
           <Route path="/Welcome" element={<Page label="Welcome">{user ? <Navigate to="/Dashboard" replace /> : <Welcome />}</Page>} />
           <Route path="/Onboarding" element={<Page label="Onboarding"><Onboarding /></Page>} />
+          <Route path="/Admin" element={<Page label="Admin"><Admin /></Page>} />
 
           <Route
             element={

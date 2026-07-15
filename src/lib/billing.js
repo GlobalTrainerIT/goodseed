@@ -131,13 +131,19 @@ export async function fetchServerPlan(familyId) {
   try {
     const { data, error } = await supabase
       .from('subscriptions')
-      .select('plan,status')
+      .select('plan,status,current_period_end,comped')
       .eq('family_id', familyId)
       .limit(1)
     if (error || !data || !data.length) return null
     const row = data[0]
-    const active = row.status === 'active' || row.status === 'trialing'
-    return active && row.plan === 'plus' ? 'plus' : 'free'
+    let active = row.status === 'active' || row.status === 'trialing'
+    // Comped (owner-granted) subs have no Stripe webhook to expire them —
+    // honor their end date directly. Stripe rows keep webhook-driven status.
+    if (active && row.comped && row.current_period_end) {
+      active = new Date(row.current_period_end).getTime() > Date.now()
+    }
+    if (!active) return 'free'
+    return row.plan === 'plus' || row.plan === 'teams' ? row.plan : 'free'
   } catch {
     return null
   }

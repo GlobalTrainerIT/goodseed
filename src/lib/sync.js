@@ -20,6 +20,7 @@ import {
   getAll,
   getById,
   getSettings,
+  update,
   registerSyncHandlers,
   applyRemoteUpsert,
   applyRemoteDeleteById,
@@ -313,10 +314,25 @@ export async function initSync(familyId) {
 
   registerSyncHandlers({ onUpsert: pushUpsert, onDelete: pushDelete, onSettings: pushSettings })
 
+  // Snapshot the local family record BEFORE applying remote data: the
+  // register_family RPC seeds a minimal cloud row (name + code) that can be
+  // newer than — and therefore overwrite — the rich local record, dropping
+  // fields like kind/group_type. We merge those back in afterwards.
+  const localFam = getById('families', familyId)
+
   const remote = await fetchFamily(familyId)
   const remoteIds = new Set(remote.map((r) => r.id))
   if (remote.length) bulkApplyRemote(remote)
   await pushLocalMissing(familyId, remoteIds)
+
+  const applied = getById('families', familyId)
+  if (localFam && applied) {
+    // Remote values win where present; local fills in what the seed lacked.
+    const merged = { ...localFam, ...applied }
+    if (JSON.stringify(merged) !== JSON.stringify(applied)) {
+      update('families', familyId, merged) // also pushes via the sync handler
+    }
+  }
   subscribe(familyId)
 }
 
