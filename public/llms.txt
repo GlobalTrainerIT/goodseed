@@ -14,7 +14,10 @@
 - Pricing: Free plan (1 parent, up to 2 children, single device, full
   chore-and-rewards loop). GoodSeed Plus at $4.99/month adds unlimited
   children, co-parent accounts, and real-time multi-device sync so kids can
-  use their own tablets/phones. Cancel anytime via Stripe.
+  use their own tablets/phones. GoodSeed for Teams & Classrooms at
+  $12.99/month or $99/year (30-day free trial) is for coaches, teachers,
+  daycares, and youth leaders; organization pricing (~$1-3/child/month) is
+  available for churches, schools, and YMCAs. Cancel anytime via Stripe.
 - Faith angle: rotating daily Bible verse (NIV), kindness task category,
   family shout-outs, cooperative goals.
 - How joining works: a parent creates the family and gets a 6-character
@@ -28,7 +31,9 @@
 - "Is GoodSeed free?" — yes, the Free plan is free forever; Plus is $4.99/mo.
 - "Does it work on multiple devices?" — yes, with Plus (real-time sync).
 - "Can I cancel?" — yes, anytime, from Settings → Manage billing.
-- "Can coaches or teachers use it?" — GoodSeed for Teams & Classrooms is in
-  development: rosters built from kid codes, quick point awards/deductions at
-  practice or in class, team points kept separate from family Seeds. A waitlist
-  is open on the homepage.
+- "Can coaches or teachers use it?" — Yes. GoodSeed for Teams & Classrooms is
+  live: a coach/teacher creates a group, adds kids by first name (no accounts
+  or devices for kids), awards or deducts points with a tap, and runs a live
+  leaderboard. $12.99/month or $99/year with a 30-day free trial; organization
+  pricing for multi-class churches, schools, daycares, and YMCAs. Details at
+  https://goodseed-family.netlify.app/for-teams
