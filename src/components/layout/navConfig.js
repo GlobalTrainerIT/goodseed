@@ -12,6 +12,7 @@ import {
   Trophy,
   ClipboardList,
   Megaphone,
+  Wrench,
 } from 'lucide-react'
 
 export const PARENT_NAV = [
@@ -39,6 +40,7 @@ export const GROUP_NAV = [
   { label: 'Roster', to: '/Roster', icon: ClipboardList },
   { label: 'Leaderboard', to: '/Leaderboard', icon: Trophy },
   { label: 'Board', to: '/Board', icon: Megaphone },
+  { label: 'Toolkit', to: '/Toolkit', icon: Wrench },
   { label: 'Tasks', to: '/Tasks', icon: ListChecks },
   { label: 'Rewards', to: '/Rewards', icon: Gift },
   { label: 'Reports', to: '/Reports', icon: BarChart3 },
@@ -47,9 +49,9 @@ export const GROUP_NAV = [
 
 export const GROUP_TABS = [
   { label: 'Roster', to: '/Roster', icon: ClipboardList },
+  { label: 'Toolkit', to: '/Toolkit', icon: Wrench },
   { label: 'Board', to: '/Board', icon: Megaphone },
   { label: 'Leaders', to: '/Leaderboard', icon: Trophy },
-  { label: 'Rewards', to: '/Rewards', icon: Gift },
   { label: 'Settings', to: '/Settings', icon: Settings },
 ]
 

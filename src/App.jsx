@@ -29,6 +29,7 @@ const ChildProfile = lazy(() => import('@/pages/ChildProfile'))
 const Roster = lazy(() => import('@/pages/Roster'))
 const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
 const Board = lazy(() => import('@/pages/Board'))
+const Toolkit = lazy(() => import('@/pages/Toolkit'))
 const Display = lazy(() => import('@/pages/Display'))
 const Admin = lazy(() => import('@/pages/Admin'))
 
@@ -115,6 +116,7 @@ export default function App() {
             <Route path="/Roster" element={<RequireParent><Roster /></RequireParent>} />
             <Route path="/Leaderboard" element={<Leaderboard />} />
             <Route path="/Board" element={<RequireParent><Board /></RequireParent>} />
+            <Route path="/Toolkit" element={<RequireParent><Toolkit /></RequireParent>} />
             <Route path="/Tasks" element={<Tasks />} />
             <Route path="/Rewards" element={<Rewards />} />
             <Route path="/Missions" element={<Missions />} />
