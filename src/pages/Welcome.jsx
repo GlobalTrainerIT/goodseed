@@ -9,6 +9,7 @@ import { findFamilyByInviteCode, loadFamilyData } from '@/lib/sync'
 import { isPlus, teamsActive, GROUP_TYPES, TEAMS_PLAN } from '@/lib/plan'
 import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
+import { DEFAULT_POINT_PRESETS } from '@/lib/constants'
 import { updateSettings } from '@/lib/db'
 
 export default function Welcome() {
@@ -123,6 +124,7 @@ export default function Welcome() {
       parentPin: '',
       parentPinEnabled: false,
       leaderboardMode: 'full',
+      pointPresets: DEFAULT_POINT_PRESETS.map((p) => ({ ...p })),
       notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS },
     })
     login(coach.id)

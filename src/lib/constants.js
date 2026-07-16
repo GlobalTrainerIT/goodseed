@@ -56,3 +56,15 @@ export const LEVEL_THRESHOLDS = (() => {
   }
   return thresholds
 })()
+
+// Default one-tap "behaviors" for a new Teams/Classroom group. A coach taps a
+// chip to award (or dock) points with a named reason — faster than typing, and
+// it makes reports meaningful ("12 × Helping others this month"). Editable.
+export const DEFAULT_POINT_PRESETS = [
+  { id: 'ontask', label: 'On task', amount: 1 },
+  { id: 'effort', label: 'Great effort', amount: 1 },
+  { id: 'helping', label: 'Helping others', amount: 2 },
+  { id: 'participation', label: 'Participation', amount: 1 },
+  { id: 'teamwork', label: 'Teamwork', amount: 2 },
+  { id: 'reminder', label: 'Needs reminder', amount: -1 },
+]
