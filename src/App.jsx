@@ -70,21 +70,35 @@ export default function App() {
         // Reconcile the plan from the server (Stripe-authoritative once billing
         // is live), so an upgrade unlocks Plus on every device.
         const serverPlan = await fetchServerPlan(fid)
-        if (!cancelled && serverPlan) {
-          const fam = getById('families', fid)
-          if (fam && (fam.plan || 'free') !== serverPlan) update('families', fid, { plan: serverPlan })
+        // A superseded run must BAIL — never fall through to the teardown
+        // below, or it would kill the sync the newer run just established
+        // (React re-invokes this effect on remount/user change).
+        if (cancelled) return
+        if (serverPlan) {
+          const fam0 = getById('families', fid)
+          if (fam0 && (fam0.plan || 'free') !== serverPlan) update('families', fid, { plan: serverPlan })
         }
+
         // Cloud sync is a Plus feature for families; groups sync while their
         // Teams plan or trial is active. Free families stay on-device.
+        // Keep this teardown bound to THIS gate: it once trailed the
+        // `serverPlan` check, so any family without a subscription row (i.e.
+        // every trial group) had sync started and then torn straight back
+        // down — their data silently never reached the cloud.
         const fam = getById('families', fid)
-        if (!cancelled && (isPlus(fam) || teamsActive(fam))) await initSync(fid)
-        // Re-assert the server-authoritative plan after sync: a stale remote
-        // family row must not downgrade what Stripe or the owner granted.
-        if (!cancelled && serverPlan) {
-          const after = getById('families', fid)
-          if (after && (after.plan || 'free') !== serverPlan) update('families', fid, { plan: serverPlan })
+        const shouldSync = isPlus(fam) || teamsActive(fam)
+        if (cancelled) return
+        if (shouldSync) {
+          await initSync(fid)
+          // Re-assert the server-authoritative plan after sync: a stale remote
+          // family row must not downgrade what Stripe or the owner granted.
+          if (!cancelled && serverPlan) {
+            const after = getById('families', fid)
+            if (after && (after.plan || 'free') !== serverPlan) update('families', fid, { plan: serverPlan })
+          }
+        } else {
+          await teardownSync()
         }
-        else await teardownSync()
         if (!cancelled) runDailyMaintenance(fid)
       } catch (e) {
         // eslint-disable-next-line no-console

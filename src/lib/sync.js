@@ -224,8 +224,20 @@ async function pushLocalMissing(familyId, remoteIds) {
 }
 
 function subscribe(familyId) {
+  // supabase-js hands back the EXISTING channel for a repeated topic, and
+  // attaching listeners to an already-subscribed channel throws ("cannot add
+  // postgres_changes callbacks after subscribe()"), which would abort sync
+  // setup. Drop any stale channel for this family before opening a fresh one.
+  const topic = `goodseed:${familyId}`
+  try {
+    supabase.getChannels()
+      .filter((c) => c.topic === topic || c.topic === `realtime:${topic}`)
+      .forEach((c) => supabase.removeChannel(c))
+  } catch {
+    /* non-fatal — worst case we fall through and re-use */
+  }
   channel = supabase
-    .channel(`goodseed:${familyId}`)
+    .channel(topic)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: RECORDS_TABLE, filter: `family_id=eq.${familyId}` },
@@ -307,12 +319,16 @@ export async function initSync(familyId) {
   syncing = true
   setStatus('connecting')
 
+  // Register push handlers BEFORE the network round-trips below: anything the
+  // user creates while we're still connecting (a coach adding kids the moment
+  // a group is made) would otherwise hit an unregistered handler and vanish.
+  // Writes that can't go out yet are queued by pushUpsert and flushed later.
+  registerSyncHandlers({ onUpsert: pushUpsert, onDelete: pushDelete, onSettings: pushSettings })
+
   // Establish device identity + family membership before any reads/writes
   // (required once records RLS is membership-scoped).
   const session = await ensureSession()
   if (session) await claimFamily(getById('families', familyId))
-
-  registerSyncHandlers({ onUpsert: pushUpsert, onDelete: pushDelete, onSettings: pushSettings })
 
   // Snapshot the local family record BEFORE applying remote data: the
   // register_family RPC seeds a minimal cloud row (name + code) that can be
@@ -334,6 +350,35 @@ export async function initSync(familyId) {
     }
   }
   subscribe(familyId)
+
+  // Anything created during the connect window (or dropped while the circuit
+  // breaker was open) gets swept up here, so a slow network can't silently
+  // leave records behind on the device.
+  await reconcile(familyId)
+}
+
+/** Push any local record for this family that the cloud doesn't have yet. */
+async function reconcile(familyId) {
+  if (!active() || breakerOpen() || activeFamilyId !== familyId) return
+  try {
+    const remote = await fetchFamily(familyId)
+    await pushLocalMissing(familyId, new Set(remote.map((r) => r.id)))
+  } catch {
+    /* next reconcile will retry */
+  }
+}
+
+/** Re-check for unsynced local records — cheap safety net for missed writes. */
+export async function resyncNow() {
+  if (activeFamilyId) await reconcile(activeFamilyId)
+}
+
+// Self-heal: sweep for unsynced records when the tab regains focus and on a
+// slow timer. Cheap (one indexed query) and means a dropped write always
+// reaches the cloud eventually instead of stranding on the device.
+if (typeof window !== 'undefined' && supabaseEnabled) {
+  window.addEventListener('focus', () => { resyncNow() })
+  setInterval(() => { resyncNow() }, 2 * 60 * 1000)
 }
 
 export async function teardownSync() {
