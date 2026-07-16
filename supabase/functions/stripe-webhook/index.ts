@@ -38,7 +38,10 @@ function isActiveStatus(status: string | undefined): boolean {
 // recurring price is the Plus plan.
 const TEAMS_PRICES = new Set([
   'price_1Ttg1ZC3XE1lnObG71CATYSX', // $12.99/mo
-  'price_1Ttg3TC3XE1lnObGx2i9JdBS', // $99/yr
+  'price_1Ttp2ZC3XE1lnObGwWOxIN0e', // $119/yr (current)
+  'price_1Ttg3TC3XE1lnObGx2i9JdBS', // $99/yr — retired, kept so any existing
+                                    // annual subscriber still maps to Teams on
+                                    // renewal instead of silently dropping.
 ])
 
 function planFor(sub: any): string {

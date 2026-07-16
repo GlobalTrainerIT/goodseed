@@ -18,7 +18,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
 const PRICES: Record<string, string | undefined> = {
   plus: Deno.env.get('STRIPE_PRICE_ID'),
   teams_monthly: 'price_1Ttg1ZC3XE1lnObG71CATYSX', // $12.99/mo
-  teams_yearly: 'price_1Ttg3TC3XE1lnObGx2i9JdBS', // $99/yr
+  teams_yearly: 'price_1Ttp2ZC3XE1lnObGwWOxIN0e', // $119/yr (replaced the $99 price)
 }
 
 const cors = {
