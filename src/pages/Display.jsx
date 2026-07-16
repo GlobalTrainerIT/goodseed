@@ -7,6 +7,7 @@ import { useRosterPhoto } from '@/lib/rosterPhotos'
 import { seedLabel, taskAppliesTo, latestCompletion } from '@/lib/domain'
 import { getVerseForDate } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
+import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
 import { groupTypeOf, isGroup } from '@/lib/plan'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -156,6 +157,8 @@ function FamilyBoard({ user, family }) {
   )
   const tasks = useCollection('tasks', (all) => all.filter((t) => t.family_id === user?.family_id && t.status === 'active'))
   useCollection('completions') // subscribe so "tasks left" recomputes on approval
+  useFollowedData() // re-render when linked-group snapshots arrive
+  useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
   const flash = usePointFlash(kids)
   const label = seedLabel()
   const verse = getVerseForDate(new Date())
@@ -191,6 +194,7 @@ function FamilyBoard({ user, family }) {
             {kids.map((kid) => {
               const left = tasksLeft(kid.id)
               const bump = flash[kid.id]
+              const roll = computeRollup(kid) // rank reflects home + school + sports
               return (
                 <div key={kid.id} className={`flex flex-col items-center gap-3 rounded-3xl bg-white/15 px-6 py-6 text-center backdrop-blur transition-all duration-500 ${bump ? 'scale-[1.03] ring-4 ring-amber-300' : ''}`}>
                   <Avatar user={kid} size="xl" ring />
@@ -202,7 +206,8 @@ function FamilyBoard({ user, family }) {
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
                     {(kid.streak_current || 0) > 0 && <span className="rounded-full bg-white/15 px-3 py-1">🔥 {kid.streak_current} day{kid.streak_current === 1 ? '' : 's'}</span>}
-                    <span className="rounded-full bg-white/15 px-3 py-1">{levelRank(kid.level || 1).emoji} {levelRank(kid.level || 1).name}</span>
+                    <span className="rounded-full bg-white/15 px-3 py-1">{roll.rank.emoji} {roll.rank.name}</span>
+                    {roll.hasGroups && <span className="rounded-full bg-white/15 px-3 py-1">🌍 {roll.grandTotal} total</span>}
                     <span className="rounded-full bg-white/15 px-3 py-1">{left > 0 ? `📋 ${left} to do` : '✅ All done!'}</span>
                   </div>
                 </div>

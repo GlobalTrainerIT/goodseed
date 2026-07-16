@@ -1,14 +1,17 @@
-// Coach ↔ parent linking.
+// Coach ↔ parent linking + the home rollup.
 //
-// Coach side: createParentLink() mints (or reuses) a per-kid capability code
-// and stores it in group_links (RLS lets a group member write their own).
-// Parent side: a local list of followed codes + fetchLinkPreview(), which asks
-// the group-link edge function for that child's read-only points/announcements.
-// The parent never joins the group and never writes group data.
+// Coach side: createParentLink() mints (or reuses) a per-kid capability code.
+// Parent side: a local list of followed codes (each tied to one of THIS
+// family's children) + fetchLinkPreview(). Points earned in a group roll up
+// to that child's "total earned everywhere" and grow their level/rank — but
+// they are NOT added to the child's spendable home Seeds. Parents keep full
+// control of the home reward shop; a coach can never fund a home reward.
 import { useSyncExternalStore } from 'react'
 import { supabase, supabaseEnabled } from './supabase'
 import { ensureSession } from './sync'
 import { generateInviteCode } from './utils'
+import { LEVEL_THRESHOLDS } from './constants'
+import { levelRank } from './faith'
 
 // ---- coach: mint a share code for one roster kid --------------------------
 export async function createParentLink(child) {
@@ -54,7 +57,7 @@ export async function fetchLinkPreview(code) {
   }
 }
 
-// ---- parent: local list of followed groups (never synced) -----------------
+// ---- parent: local followed-groups store + cached snapshots ---------------
 const KEY = 'goodseed_followed_groups'
 
 function load() {
@@ -65,14 +68,17 @@ function load() {
   }
 }
 
-let followed = load()
+let followed = load() // [{ code, childId, childName, groupName }]  (childId = THIS family's child)
+let snapshots = {} // { [code]: previewData } — in-memory, refetched each session
 const listeners = new Set()
 
-function emit() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(followed))
-  } catch {
-    /* ignore quota */
+function emit(persist = true) {
+  if (persist) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(followed))
+    } catch {
+      /* ignore quota */
+    }
   }
   listeners.forEach((l) => l())
 }
@@ -85,13 +91,64 @@ export function addFollowedGroup(entry) {
 
 export function removeFollowedGroup(code) {
   followed = followed.filter((f) => f.code !== code)
+  const { [code]: _drop, ...rest } = snapshots
+  snapshots = rest
   emit()
 }
 
-export function useFollowedGroups() {
-  return useSyncExternalStore(
-    (cb) => { listeners.add(cb); return () => listeners.delete(cb) },
-    () => followed,
-    () => followed
+function setSnapshot(code, data) {
+  snapshots = { ...snapshots, [code]: data }
+  emit(false) // snapshots aren't persisted
+}
+
+// Fetch previews for all followed codes and cache them (drives the rollup).
+export async function refreshFollowed() {
+  await Promise.all(
+    followed.map(async (f) => {
+      const r = await fetchLinkPreview(f.code)
+      if (r && !r.error) setSnapshot(f.code, r)
+    })
   )
+}
+
+const version = () => followed.length * 1e6 + Object.keys(snapshots).length + Object.values(snapshots).reduce((s, d) => s + (d?.total_earned || 0), 0)
+export function useFollowedData() {
+  useSyncExternalStore((cb) => { listeners.add(cb); return () => listeners.delete(cb) }, version, version)
+  return { followed, snapshots }
+}
+
+export function useFollowedGroups() {
+  return useFollowedData().followed
+}
+
+// ---- the rollup: home + linked groups, for one family child ---------------
+function levelFromXp(xp) {
+  let level = 1
+  for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) {
+    if (xp >= LEVEL_THRESHOLDS[i]) level = i + 1
+    else break
+  }
+  return level
+}
+
+// Recognition rollup: groups add to the total & level, never to spendable Seeds.
+// (Seeds contribute 2 XP each — same factor used when points are awarded — so a
+// group's lifetime points grow the home level consistently.)
+export function computeRollup(child) {
+  const homeTotal = child?.total_seeds_earned || 0
+  const homeXp = child?.xp || 0
+  const mine = followed.filter((f) => f.childId === child?.id)
+  const groups = mine.map((f) => {
+    const snap = snapshots[f.code]
+    return {
+      code: f.code,
+      name: snap?.group_name || f.groupName,
+      total: snap?.total_earned ?? null, // null = not fetched yet
+      points: snap?.points ?? null,
+    }
+  })
+  const groupTotal = groups.reduce((s, g) => s + (g.total || 0), 0)
+  const grandTotal = homeTotal + groupTotal
+  const level = levelFromXp(homeXp + groupTotal * 2)
+  return { groups, homeTotal, groupTotal, grandTotal, level, rank: levelRank(level), hasGroups: mine.length > 0 }
 }

@@ -46,7 +46,12 @@ Deno.serve(async (req) => {
 
     const kids = (kidsRes.data || [])
       .filter((u) => (u.data as Record<string, unknown>)?.role === 'child')
-      .map((u) => ({ id: u.id, points: Number((u.data as Record<string, unknown>)?.seed_balance) || 0, name: (u.data as Record<string, unknown>)?.full_name }))
+      .map((u) => ({
+        id: u.id,
+        points: Number((u.data as Record<string, unknown>)?.seed_balance) || 0,
+        total_earned: Number((u.data as Record<string, unknown>)?.total_seeds_earned) || 0,
+        name: (u.data as Record<string, unknown>)?.full_name,
+      }))
       .sort((a, b) => b.points - a.points)
 
     const idx = kids.findIndex((k) => k.id === link.child_id)
@@ -62,6 +67,7 @@ Deno.serve(async (req) => {
       group_name: (famRes.data?.data as Record<string, unknown>)?.name || 'Group',
       child_name: link.child_name || kids[idx].name,
       points: kids[idx].points,
+      total_earned: kids[idx].total_earned, // lifetime — rolls up to home, unaffected by coach deductions
       rank: idx + 1,
       total_kids: kids.length,
       announcements,
