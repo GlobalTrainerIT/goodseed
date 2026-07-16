@@ -28,6 +28,7 @@ const NotificationCenter = lazy(() => import('@/pages/NotificationCenter'))
 const ChildProfile = lazy(() => import('@/pages/ChildProfile'))
 const Roster = lazy(() => import('@/pages/Roster'))
 const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
+const Display = lazy(() => import('@/pages/Display'))
 const Admin = lazy(() => import('@/pages/Admin'))
 
 function RequireAuth({ children }) {
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="/Welcome" element={<Page label="Welcome">{user ? <Navigate to="/Dashboard" replace /> : <Welcome />}</Page>} />
           <Route path="/Onboarding" element={<Page label="Onboarding"><Onboarding /></Page>} />
           <Route path="/Admin" element={<Page label="Admin"><Admin /></Page>} />
+          <Route path="/Display" element={<Page label="Display"><RequireAuth><Display /></RequireAuth></Page>} />
 
           <Route
             element={

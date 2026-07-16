@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, Settings2, Camera } from 'lucide-react'
+import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, Settings2, Camera, Monitor } from 'lucide-react'
 import { Card, Button, Input, Label, Dialog, Badge } from '@/components/ui'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
@@ -120,6 +120,7 @@ export default function Roster() {
               {kids.length > 0 && (
                 <Button variant="secondary" onClick={() => setSelectMode(true)}><CheckSquare className="h-4 w-4" /> Select</Button>
               )}
+              <Button variant="secondary" onClick={() => navigate('/Display')}><Monitor className="h-4 w-4" /> Big screen</Button>
               <Button variant="secondary" onClick={() => navigate('/Leaderboard')}><Trophy className="h-4 w-4" /> Leaderboard</Button>
               <Button onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" /> Add</Button>
             </div>
