@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, Settings2, Camera, Monitor } from 'lucide-react'
+import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, Settings2, Camera, Monitor, Share2 } from 'lucide-react'
 import { Card, Button, Input, Label, Dialog, Badge } from '@/components/ui'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
@@ -11,6 +11,7 @@ import { awardSeeds, deductSeeds, seedLabel } from '@/lib/domain'
 import { canAddChild, trialDaysLeft, teamsActive, groupTypeOf } from '@/lib/plan'
 import { AVATAR_EMOJIS, AVATAR_COLORS, DEFAULT_POINT_PRESETS } from '@/lib/constants'
 import { useRosterPhoto, setRosterPhoto, removeRosterPhoto } from '@/lib/rosterPhotos'
+import { createParentLink } from '@/lib/groupLink'
 import { fileToDataUrl } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 
@@ -48,6 +49,7 @@ export default function Roster() {
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState(null)
   const [photoFor, setPhotoFor] = useState(null) // kid whose photo is being edited
+  const [shareFor, setShareFor] = useState(null) // kid being shared with a parent
   const [editingBehaviors, setEditingBehaviors] = useState(false)
 
   // Multi-select ("give the whole group a point") mode
@@ -199,10 +201,18 @@ export default function Roster() {
         </div>
       )}
 
-      <PointsDialog kid={pointsFor} active={active} presets={presets} onEditBehaviors={() => { setPointsFor(null); setEditingBehaviors(true) }} onClose={() => setPointsFor(null)} />
+      <PointsDialog
+        kid={pointsFor}
+        active={active}
+        presets={presets}
+        onEditBehaviors={() => { setPointsFor(null); setEditingBehaviors(true) }}
+        onShareParent={() => { const k = pointsFor; setPointsFor(null); setShareFor(k) }}
+        onClose={() => setPointsFor(null)}
+      />
       <AddKidDialog open={adding} group={group} kidCount={kids.length} onClose={() => setAdding(false)} />
       <RemoveKidDialog kid={removing} onClose={() => setRemoving(null)} />
       <PhotoDialog kid={photoFor} onClose={() => setPhotoFor(null)} />
+      <ShareParentDialog kid={shareFor} group={group} onClose={() => setShareFor(null)} />
       <BehaviorsDialog open={editingBehaviors} presets={presets} onClose={() => setEditingBehaviors(false)} />
     </div>
   )
@@ -311,7 +321,7 @@ function PhotoDialog({ kid, onClose }) {
   )
 }
 
-function PointsDialog({ kid, active, presets, onEditBehaviors, onClose }) {
+function PointsDialog({ kid, active, presets, onEditBehaviors, onShareParent, onClose }) {
   const [reason, setReason] = useState('')
   const [custom, setCustom] = useState('')
   const liveKid = useRecord('users', kid?.id) // live balance while the dialog is open
@@ -396,6 +406,64 @@ function PointsDialog({ kid, active, presets, onEditBehaviors, onClose }) {
           <Label>Reason (optional — shows in the activity log)</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Great hustle at practice" />
         </div>
+        <button onClick={onShareParent} className="flex w-full items-center justify-center gap-1.5 border-t border-gray-100 pt-3 text-sm font-medium text-seed-700 hover:text-seed-800 dark:border-gray-800 dark:text-seed-400">
+          <Share2 className="h-4 w-4" /> Share {kid.full_name}'s chart with a parent
+        </button>
+      </div>
+    </Dialog>
+  )
+}
+
+// Mints a per-kid link code and gives the coach a ready-to-send message. The
+// parent enters the code in their GoodSeed family app to follow this child's
+// group points and announcements — read-only, no group access.
+function ShareParentDialog({ kid, group, onClose }) {
+  const [state, setState] = useState({ loading: true })
+
+  useEffect(() => {
+    if (!kid) return
+    setState({ loading: true })
+    createParentLink(kid).then((r) => setState({ loading: false, ...r }))
+  }, [kid])
+
+  if (!kid) return null
+  const code = state.code
+  const shareText = code
+    ? `Follow ${kid.full_name}'s progress in ${group?.name} on GoodSeed! Open goodseed-family.netlify.app, tap "I'm a Parent" → then "Follow a group", and enter code ${code}.`
+    : ''
+
+  return (
+    <Dialog
+      open={!!kid}
+      onClose={onClose}
+      title={`Share ${kid.full_name}'s chart`}
+      description="Let this child's parent follow their group points & announcements at home."
+      footer={<Button onClick={onClose}>Done</Button>}
+    >
+      <div className="space-y-4">
+        {state.loading ? (
+          <p className="text-sm text-gray-500">Creating a secure code…</p>
+        ) : state.error ? (
+          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-300">{state.error}</p>
+        ) : (
+          <>
+            <div className="rounded-xl border border-gray-100 p-4 text-center dark:border-gray-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Parent code</p>
+              <p className="mt-1 font-mono text-3xl font-black tracking-widest text-seed-700 dark:text-seed-400">{code}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => { navigator.clipboard?.writeText(code); toast({ title: 'Code copied', emoji: '📋' }) }}>
+                Copy code
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={() => { navigator.clipboard?.writeText(shareText); toast({ title: 'Message copied', message: 'Paste it into a text or email.', emoji: '✉️' }) }}>
+                Copy message
+              </Button>
+            </div>
+            <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              🔒 The parent can only <b>view</b> {kid.full_name}'s points and your announcements — they can't award points or see other kids' details. You can stop sharing anytime by removing {kid.full_name} from the roster.
+            </p>
+          </>
+        )}
       </div>
     </Dialog>
   )

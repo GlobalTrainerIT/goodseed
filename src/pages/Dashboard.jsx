@@ -7,6 +7,7 @@ import BibleVerseCard from '@/components/dashboard/BibleVerseCard'
 import ShoutOutCard from '@/components/dashboard/ShoutOutCard'
 import LeaderboardCard from '@/components/dashboard/LeaderboardCard'
 import ChildHome from '@/components/child/ChildHome'
+import FollowedGroups from '@/components/dashboard/FollowedGroups'
 import { Button } from '@/components/ui'
 import TaskForm from '@/components/tasks/TaskForm'
 import RewardForm from '@/components/rewards/RewardForm'
@@ -54,6 +55,10 @@ export default function Dashboard() {
         <StatCard label="Pending Approvals" value={pendingApprovals.length} icon={Clock} tone="orange" to="/Tasks" highlight={pendingApprovals.length > 0} />
         <StatCard label="Redemption Requests" value={pendingRedemptions.length} icon={Gift} tone="purple" to="/Rewards" highlight={pendingRedemptions.length > 0} />
         <StatCard label="Total Rewards" value={totalRewards} icon={Award} tone="blue" to="/Rewards" />
+      </div>
+
+      <div className="mt-5">
+        <FollowedGroups />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
