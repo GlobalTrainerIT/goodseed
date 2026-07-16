@@ -126,6 +126,34 @@ export async function fetchSubscription(familyId) {
  * faked locally. Returns 'free' | 'plus' (defaults to family.plan / 'free' if
  * the backend or table isn't reachable). Used on load to reconcile plan state.
  */
+/**
+ * Cover this group under an organization's deal (church/school/YMCA). The
+ * org-join function verifies the caller leads this group and that the org is
+ * active, then writes the group's subscription — so a volunteer coach never
+ * pays out of pocket and every existing plan gate just works.
+ */
+export async function joinOrganization(code, groupFamilyId) {
+  if (!billingConfigured()) return { error: 'Cloud sync is required.' }
+  try {
+    await ensureSession()
+    const { data, error } = await supabase.functions.invoke('org-join', {
+      body: { action: 'join', code: String(code).trim().toUpperCase(), group_family_id: groupFamilyId },
+    })
+    if (error) {
+      try {
+        const ctx = await error.context?.json()
+        return { error: ctx?.error || error.message, org_name: ctx?.org_name, cap: ctx?.cap }
+      } catch {
+        return { error: error.message }
+      }
+    }
+    if (data?.error) return data
+    return data
+  } catch (e) {
+    return { error: String(e?.message || e) }
+  }
+}
+
 export async function fetchServerPlan(familyId) {
   // Only meaningful once billing is live (the subscriptions table exists in
   // Phase B). Skipping avoids a failed request on every load before then.

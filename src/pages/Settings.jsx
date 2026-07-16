@@ -11,7 +11,7 @@ import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hoo
 import { updateSettings, remove, resetAll, update } from '@/lib/db'
 import { deleteFamilyFromCloud } from '@/lib/sync'
 import { isPlus, planOf, isGroup, trialDaysLeft, teamsActive } from '@/lib/plan'
-import { fetchServerPlan, fetchSubscription, openBillingPortal, startCheckout } from '@/lib/billing'
+import { fetchServerPlan, fetchSubscription, openBillingPortal, startCheckout, joinOrganization } from '@/lib/billing'
 import { formatDate } from '@/lib/utils'
 import { CreditCard } from 'lucide-react'
 import UpgradeDialog from '@/components/shared/UpgradeDialog'
@@ -263,14 +263,17 @@ export default function Settings() {
                 )}
               </div>
               {!activating && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button onClick={() => startCheckout(family, 'teams_monthly')}>
-                    <Sparkles className="h-4 w-4" /> $12.99/month
-                  </Button>
-                  <Button variant="secondary" onClick={() => startCheckout(family, 'teams_yearly')}>
-                    $99/year — 2 months free
-                  </Button>
-                </div>
+                <>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button onClick={() => startCheckout(family, 'teams_monthly')}>
+                      <Sparkles className="h-4 w-4" /> $12.99/month
+                    </Button>
+                    <Button variant="secondary" onClick={() => startCheckout(family, 'teams_yearly')}>
+                      $119/year — save 24%
+                    </Button>
+                  </div>
+                  <OrgCodeBox family={family} />
+                </>
               )}
             </div>
           )}
@@ -460,5 +463,57 @@ function SetPinDialog({ open, onClose }) {
         </div>
       </div>
     </Dialog>
+  )
+}
+
+// A church/school/YMCA buys one deal and hands its leaders a code. Entering it
+// covers this group, so volunteer coaches never pay out of pocket.
+function OrgCodeBox({ family }) {
+  const [open, setOpen] = useState(false)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    setBusy(true)
+    const r = await joinOrganization(code, family.id)
+    setBusy(false)
+    if (r?.error) {
+      const msg =
+        r.error === 'not_found' ? "That organization code wasn't recognized. Check it with your administrator."
+        : r.error === 'org_expired' ? `${r.org_name || 'That organization'}'s plan has ended — ask them to renew.`
+        : r.error === 'org_full' ? `${r.org_name || 'That organization'} has used all ${r.cap} of its group spots.`
+        : r.error === 'has_own_subscription' ? 'This group already has its own paid subscription.'
+        : r.error === 'forbidden' ? 'Only a leader of this group can use an organization code.'
+        : r.error
+      setError(msg)
+      return
+    }
+    update('families', family.id, { plan: 'teams' })
+    toast({ title: `Covered by ${r.org_name}! 🎉`, message: 'Everything is unlocked — nothing to pay.', emoji: '🏛️' })
+    setCode('')
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="mt-3 text-xs font-medium text-seed-700 hover:underline dark:text-seed-400">
+        Part of a church, school, or organization? Enter their code →
+      </button>
+    )
+  }
+  return (
+    <form onSubmit={submit} className="mt-3 space-y-2 rounded-xl border border-gray-100 p-3 dark:border-gray-800">
+      <Label>Organization code</Label>
+      <div className="flex gap-2">
+        <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. ORG-8A7VH" maxLength={10}
+          className="text-center font-bold tracking-widest" autoFocus />
+        <Button type="submit" disabled={!code.trim() || busy}>{busy ? 'Checking…' : 'Apply'}</Button>
+      </div>
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-300">{error}</p>}
+      <p className="text-xs text-gray-400">Your administrator has this code. It covers your group at no cost to you.</p>
+    </form>
   )
 }

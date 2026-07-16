@@ -98,6 +98,17 @@ Deno.serve(async (req) => {
         .filter((s) => !s.comped)
         .reduce((sum, s) => sum + (PRICES[s.plan] || 0), 0)
 
+      // Organizations (churches/schools/YMCAs) + how many groups each covers.
+      const { data: orgs } = await supabase
+        .from('organizations').select('*').order('created_at', { ascending: false })
+      const coveredCounts: Record<string, number> = {}
+      for (const s of subs) if (s.org_id) coveredCounts[s.org_id] = (coveredCounts[s.org_id] || 0) + 1
+      const organizations = (orgs || []).map((o) => ({
+        ...o,
+        groups_covered: coveredCounts[o.id] || 0,
+        expired: new Date(o.active_until).getTime() <= Date.now(),
+      }))
+
       return json({
         stats: {
           families: families.filter((f) => f.kind === 'family').length,
@@ -108,10 +119,44 @@ Deno.serve(async (req) => {
           comped_subs: activeSubs.filter((s) => s.comped).length,
           est_mrr: Math.round(mrr * 100) / 100,
           waitlist: (waitRes.data || []).length,
+          orgs: organizations.filter((o) => !o.revoked && !o.expired).length,
         },
         families,
+        organizations,
         waitlist: waitRes.data || [],
       })
+    }
+
+    // ---- create an organization (invoiced deal → code its leaders enter)
+    if (action === 'create_org') {
+      const name = String(body.name || '').trim()
+      const days = Math.min(1095, Math.max(1, Number(body.days) || 365))
+      if (!name) return json({ error: 'name required' }, 400)
+      // Unambiguous characters only — this gets read off a phone or a slide.
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      let suffix = ''
+      for (let i = 0; i < 5; i++) suffix += chars[Math.floor(Math.random() * chars.length)]
+      const code = `ORG-${suffix}`
+      const { error } = await supabase.from('organizations').insert({
+        name,
+        code,
+        active_until: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+        group_cap: body.group_cap ? Number(body.group_cap) : null,
+        note: String(body.note || ''),
+      })
+      if (error) return json({ error: error.message }, 500)
+      return json({ ok: true, code })
+    }
+
+    // ---- end an org's coverage: revoke it AND drop the groups it covered
+    if (action === 'revoke_org') {
+      const org_id = String(body.org_id || '')
+      if (!org_id) return json({ error: 'org_id required' }, 400)
+      await supabase.from('organizations').update({ revoked: true }).eq('id', org_id)
+      await supabase.from('subscriptions')
+        .update({ status: 'canceled', updated_at: new Date().toISOString() })
+        .eq('org_id', org_id)
+      return json({ ok: true })
     }
 
     if (action === 'grant') {

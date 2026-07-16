@@ -51,7 +51,7 @@ export const GROUP_TYPES = [
 export const TEAMS_PLAN = {
   id: 'teams',
   name: 'Teams',
-  price: '$12.99/mo or $99/yr',
+  price: '$12.99/mo or $119/yr',
   trialDays: 30,
 }
 

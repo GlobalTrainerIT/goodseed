@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Sprout, RefreshCw, LogOut, Gift, XCircle } from 'lucide-react'
+import { Sprout, RefreshCw, LogOut, Gift, XCircle, Plus } from 'lucide-react'
 import { Card, Button, Input, Label, Badge, Dialog } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { ensureSession } from '@/lib/sync'
 import { GROUP_TYPES } from '@/lib/plan'
+import { toast } from '@/lib/toast'
 
 /**
  * Owner console — not linked from any nav; reachable only at /Admin with the
@@ -140,6 +141,7 @@ export default function Admin() {
             ['Groups', stats.groups],
             ['Kids', stats.kids],
             ['Devices', stats.devices],
+            ['Orgs', stats.orgs ?? 0],
             ['Waitlist', stats.waitlist],
           ].map(([label, value]) => (
             <Card key={label} className="p-4 text-center">
@@ -148,6 +150,28 @@ export default function Admin() {
             </Card>
           ))}
         </div>
+
+        <Section title={`Organizations (${(data.organizations || []).length})`}>
+          <OrgTable
+            orgs={data.organizations || []}
+            onCreate={async (name, days, cap) => {
+              setBusy(true)
+              try {
+                const r = await adminCall(key, { action: 'create_org', name, days, group_cap: cap || null })
+                await refresh()
+                return r.code
+              } catch (e) {
+                setError(String(e.message || e)); setBusy(false); return null
+              }
+            }}
+            onRevoke={async (org) => {
+              if (!confirm(`End ${org.name}'s coverage? Every group they cover drops to free immediately.`)) return
+              setBusy(true)
+              try { await adminCall(key, { action: 'revoke_org', org_id: org.id }); await refresh() }
+              catch (e) { setError(String(e.message || e)); setBusy(false) }
+            }}
+          />
+        </Section>
 
         <Section title={`Teams & Classrooms (${groups.length})`}>
           <AccountTable rows={groups} onGrant={setGranting} onRevoke={revoke} isGroup />
@@ -187,6 +211,101 @@ export default function Admin() {
         />
       </div>
     </div>
+  )
+}
+
+// Organizations: an invoiced church/school/YMCA deal. You create it here, hand
+// the code to their administrator, and every leader who enters it is covered.
+function OrgTable({ orgs, onCreate, onRevoke }) {
+  const [name, setName] = useState('')
+  const [days, setDays] = useState('365')
+  const [cap, setCap] = useState('')
+  const [newCode, setNewCode] = useState(null)
+
+  async function create() {
+    if (!name.trim()) return
+    const code = await onCreate(name.trim(), parseInt(days, 10) || 365, cap ? parseInt(cap, 10) : null)
+    if (code) { setNewCode({ code, name: name.trim() }); setName(''); setCap('') }
+  }
+
+  return (
+    <>
+      <Card className="mb-3 p-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[180px] flex-1">
+            <Label>Organization name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Grace Church" />
+          </div>
+          <div className="w-24">
+            <Label>Days</Label>
+            <Input type="number" value={days} onChange={(e) => setDays(e.target.value)} />
+          </div>
+          <div className="w-28">
+            <Label>Group cap</Label>
+            <Input type="number" value={cap} onChange={(e) => setCap(e.target.value)} placeholder="∞" />
+          </div>
+          <Button onClick={create} disabled={!name.trim()}><Plus className="h-4 w-4" /> Create org</Button>
+        </div>
+        {newCode && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-seed-500 bg-seed-50 p-3 dark:bg-seed-900/30">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-seed-700 dark:text-seed-400">{newCode.name}'s code</p>
+              <p className="font-mono text-2xl font-black tracking-widest text-seed-800 dark:text-seed-200">{newCode.code}</p>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(newCode.code); toast({ title: 'Code copied', message: 'Send it to their administrator.', emoji: '📋' }) }}>
+              Copy
+            </Button>
+            <p className="text-xs text-gray-500">Their leaders enter this in Settings — every group they run is covered, free to them.</p>
+          </div>
+        )}
+      </Card>
+
+      {orgs.length === 0 ? (
+        <p className="text-sm text-gray-400">No organizations yet. Create one when you land a church or school deal.</p>
+      ) : (
+        <Card className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400 dark:border-gray-800">
+                <th className="px-4 py-2.5">Organization</th>
+                <th className="px-4 py-2.5">Code</th>
+                <th className="px-4 py-2.5">Groups</th>
+                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">Renews</th>
+                <th className="px-4 py-2.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
+              {orgs.map((o) => (
+                <tr key={o.id}>
+                  <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">{o.name}</td>
+                  <td className="px-4 py-2.5">
+                    <button onClick={() => { navigator.clipboard?.writeText(o.code); toast({ title: 'Code copied', emoji: '📋' }) }}
+                      className="rounded bg-gray-100 px-2 py-1 font-mono text-xs font-bold tracking-wider hover:bg-gray-200 dark:bg-gray-800">
+                      {o.code}
+                    </button>
+                  </td>
+                  <td className="px-4 py-2.5">{o.groups_covered}{o.group_cap ? ` / ${o.group_cap}` : ''}</td>
+                  <td className="px-4 py-2.5">
+                    {o.revoked ? <Badge variant="gray">ended</Badge>
+                      : o.expired ? <Badge className="bg-red-100 text-red-700">expired</Badge>
+                      : <Badge variant="green">active</Badge>}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-400">{new Date(o.active_until).toLocaleDateString()}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    {!o.revoked && (
+                      <Button size="sm" variant="outline" className="border-red-200 text-red-600" onClick={() => onRevoke(o)}>
+                        <XCircle className="h-3.5 w-3.5" /> End
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </>
   )
 }
 
