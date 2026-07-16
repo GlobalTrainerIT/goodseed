@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, Settings2 } from 'lucide-react'
+import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, Settings2, Camera } from 'lucide-react'
 import { Card, Button, Input, Label, Dialog, Badge } from '@/components/ui'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
@@ -10,6 +10,8 @@ import { create, remove, getById, updateSettings } from '@/lib/db'
 import { awardSeeds, deductSeeds, seedLabel } from '@/lib/domain'
 import { canAddChild, trialDaysLeft, teamsActive, groupTypeOf } from '@/lib/plan'
 import { AVATAR_EMOJIS, AVATAR_COLORS, DEFAULT_POINT_PRESETS } from '@/lib/constants'
+import { useRosterPhoto, setRosterPhoto, removeRosterPhoto } from '@/lib/rosterPhotos'
+import { fileToDataUrl } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 
 const QUICK_AWARD = [1, 2, 5, 10]
@@ -45,6 +47,7 @@ export default function Roster() {
   const [pointsFor, setPointsFor] = useState(null) // kid receiving points (single mode)
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState(null)
+  const [photoFor, setPhotoFor] = useState(null) // kid whose photo is being edited
   const [editingBehaviors, setEditingBehaviors] = useState(false)
 
   // Multi-select ("give the whole group a point") mode
@@ -141,38 +144,17 @@ export default function Roster() {
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {kids.map((kid) => {
-            const isSel = selected.has(kid.id)
-            return (
-              <button
-                key={kid.id}
-                onClick={() => (selectMode ? toggleSelect(kid.id) : setPointsFor(kid))}
-                className="group text-left"
-              >
-                <Card className={`relative flex flex-col items-center gap-2 p-4 text-center transition hover:border-seed-400 hover:shadow-md ${isSel ? 'border-seed-500 ring-2 ring-seed-400 dark:border-seed-500' : ''}`}>
-                  {selectMode && (
-                    <span className={`absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 ${isSel ? 'border-seed-500 bg-seed-500 text-white' : 'border-gray-300'}`}>
-                      {isSel && <CheckSquare className="h-3 w-3" />}
-                    </span>
-                  )}
-                  <Avatar user={kid} size="lg" />
-                  <p className="w-full truncate font-bold text-gray-900 dark:text-gray-100">{kid.full_name}</p>
-                  <Badge variant="green" className="text-sm font-extrabold">🌟 {kid.seed_balance || 0}</Badge>
-                  {!selectMode && (
-                    <span
-                      role="button"
-                      tabIndex={-1}
-                      onClick={(e) => { e.stopPropagation(); setRemoving(kid) }}
-                      className="absolute right-2 top-2 hidden rounded-full p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 group-hover:block"
-                      aria-label={`Remove ${kid.full_name}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </span>
-                  )}
-                </Card>
-              </button>
-            )
-          })}
+          {kids.map((kid) => (
+            <KidCard
+              key={kid.id}
+              kid={kid}
+              selectMode={selectMode}
+              selected={selected.has(kid.id)}
+              onTap={() => (selectMode ? toggleSelect(kid.id) : setPointsFor(kid))}
+              onPhoto={() => setPhotoFor(kid)}
+              onRemove={() => setRemoving(kid)}
+            />
+          ))}
         </div>
       )}
 
@@ -219,8 +201,112 @@ export default function Roster() {
       <PointsDialog kid={pointsFor} active={active} presets={presets} onEditBehaviors={() => { setPointsFor(null); setEditingBehaviors(true) }} onClose={() => setPointsFor(null)} />
       <AddKidDialog open={adding} group={group} kidCount={kids.length} onClose={() => setAdding(false)} />
       <RemoveKidDialog kid={removing} onClose={() => setRemoving(null)} />
+      <PhotoDialog kid={photoFor} onClose={() => setPhotoFor(null)} />
       <BehaviorsDialog open={editingBehaviors} presets={presets} onClose={() => setEditingBehaviors(false)} />
     </div>
+  )
+}
+
+// A roster tile. Reads its own local-only photo so a change re-renders just
+// this card. The photo never syncs — it lives only on this device.
+function KidCard({ kid, selectMode, selected, onTap, onPhoto, onRemove }) {
+  const photo = useRosterPhoto(kid.id)
+  const shown = photo ? { ...kid, avatar_photo: photo } : kid
+  return (
+    <button onClick={onTap} className="group text-left">
+      <Card className={`relative flex flex-col items-center gap-2 p-4 text-center transition hover:border-seed-400 hover:shadow-md ${selected ? 'border-seed-500 ring-2 ring-seed-400 dark:border-seed-500' : ''}`}>
+        {selectMode && (
+          <span className={`absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 ${selected ? 'border-seed-500 bg-seed-500 text-white' : 'border-gray-300'}`}>
+            {selected && <CheckSquare className="h-3 w-3" />}
+          </span>
+        )}
+        <div className="relative">
+          <Avatar user={shown} size="lg" />
+          {!selectMode && (
+            <span
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => { e.stopPropagation(); onPhoto() }}
+              className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-gray-600 text-white shadow hover:bg-gray-700 dark:border-gray-900"
+              aria-label={`Photo for ${kid.full_name}`}
+            >
+              <Camera className="h-3 w-3" />
+            </span>
+          )}
+        </div>
+        <p className="w-full truncate font-bold text-gray-900 dark:text-gray-100">{kid.full_name}</p>
+        <Badge variant="green" className="text-sm font-extrabold">🌟 {kid.seed_balance || 0}</Badge>
+        {!selectMode && (
+          <span
+            role="button"
+            tabIndex={-1}
+            onClick={(e) => { e.stopPropagation(); onRemove() }}
+            className="absolute right-2 top-2 hidden rounded-full p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 group-hover:block"
+            aria-label={`Remove ${kid.full_name}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </span>
+        )}
+      </Card>
+    </button>
+  )
+}
+
+// Local-only photo editor for a roster kid. Downscaled to 256px and stored on
+// this device only — never uploaded, never synced. See src/lib/rosterPhotos.js.
+function PhotoDialog({ kid, onClose }) {
+  const photo = useRosterPhoto(kid?.id)
+  const fileRef = useRef(null)
+  const [busy, setBusy] = useState(false)
+
+  async function pick(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusy(true)
+    const url = await fileToDataUrl(file, 256, 0.75)
+    setBusy(false)
+    if (url) {
+      setRosterPhoto(kid.id, url)
+      toast({ title: 'Photo added', message: 'Saved on this device only.', emoji: '📸' })
+    } else {
+      toast({ title: "Couldn't read that image", type: 'error' })
+    }
+  }
+
+  if (!kid) return null
+  return (
+    <Dialog
+      open={!!kid}
+      onClose={onClose}
+      title={`Photo — ${kid.full_name}`}
+      description="Helps you match names to faces on your roster."
+      footer={<Button onClick={onClose}>Done</Button>}
+    >
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Avatar user={photo ? { ...kid, avatar_photo: photo } : kid} size="xl" />
+          <div className="flex flex-col gap-2">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pick} />
+            <Button variant="secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
+              <Camera className="h-4 w-4" /> {busy ? 'Loading…' : photo ? 'Change photo' : 'Choose photo'}
+            </Button>
+            {photo && (
+              <Button
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900"
+                onClick={() => { removeRosterPhoto(kid.id); toast({ title: 'Photo removed', emoji: '🗑️' }) }}
+              >
+                <Trash2 className="h-4 w-4" /> Remove
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+          🔒 Photos stay on <b>this device only</b> — they're never uploaded or synced, and no one else can see them. Please follow your organization's policy on photographing children.
+        </p>
+      </div>
+    </Dialog>
   )
 }
 
