@@ -11,6 +11,7 @@ import {
   User,
   Trophy,
   ClipboardList,
+  Megaphone,
 } from 'lucide-react'
 
 export const PARENT_NAV = [
@@ -37,6 +38,7 @@ export const PARENT_TABS = [
 export const GROUP_NAV = [
   { label: 'Roster', to: '/Roster', icon: ClipboardList },
   { label: 'Leaderboard', to: '/Leaderboard', icon: Trophy },
+  { label: 'Board', to: '/Board', icon: Megaphone },
   { label: 'Tasks', to: '/Tasks', icon: ListChecks },
   { label: 'Rewards', to: '/Rewards', icon: Gift },
   { label: 'Reports', to: '/Reports', icon: BarChart3 },
@@ -45,8 +47,8 @@ export const GROUP_NAV = [
 
 export const GROUP_TABS = [
   { label: 'Roster', to: '/Roster', icon: ClipboardList },
+  { label: 'Board', to: '/Board', icon: Megaphone },
   { label: 'Leaders', to: '/Leaderboard', icon: Trophy },
-  { label: 'Tasks', to: '/Tasks', icon: ListChecks },
   { label: 'Rewards', to: '/Rewards', icon: Gift },
   { label: 'Settings', to: '/Settings', icon: Settings },
 ]
