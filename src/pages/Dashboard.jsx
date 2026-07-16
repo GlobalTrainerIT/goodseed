@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { ListChecks, Clock, Gift, Award, Plus, CheckCircle2, BarChart3, UserPlus } from 'lucide-react'
+import { ListChecks, Clock, Gift, Award, Plus, CheckCircle2, BarChart3, UserPlus, Monitor } from 'lucide-react'
 import PageHeader from '@/components/shared/PageHeader'
 import StatCard from '@/components/dashboard/StatCard'
 import BibleVerseCard from '@/components/dashboard/BibleVerseCard'
@@ -69,6 +69,7 @@ export default function Dashboard() {
         <div className="space-y-5">
           <LeaderboardCard />
           <div className="grid grid-cols-1 gap-2">
+            <Button variant="secondary" onClick={() => navigate('/Display')}><Monitor className="h-4 w-4" /> Kitchen screen</Button>
             <Button variant="secondary" onClick={() => navigate('/Tasks')}><CheckCircle2 className="h-4 w-4" /> Approve Tasks</Button>
             <Button variant="secondary" onClick={() => navigate('/Reports')}><BarChart3 className="h-4 w-4" /> View Reports</Button>
             <Button variant="secondary" onClick={() => navigate('/Family')}><UserPlus className="h-4 w-4" /> Add Child</Button>

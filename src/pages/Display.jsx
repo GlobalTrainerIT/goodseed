@@ -1,33 +1,41 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Maximize, Minimize, X, Trophy } from 'lucide-react'
+import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion } from '@/lib/domain'
+import { getVerseForDate } from '@/lib/verses'
 import { groupTypeOf, isGroup } from '@/lib/plan'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
-// Full-screen, read-only board for a classroom monitor / projector. Reads the
-// same reactive store, so points awarded on the coach's phone (same device, or
-// a co-leader's via cloud sync) animate up here in real time.
+// Full-screen board for a screen in the room — a classroom monitor for groups,
+// a kitchen tablet for families. Reads the reactive store, so points awarded
+// (or tasks approved) elsewhere animate up here in real time.
 export default function Display() {
   const user = useCurrentUser()
-  const group = useRecord('families', user?.family_id)
-  const navigate = useNavigate()
+  const family = useRecord('families', user?.family_id)
+  if (!user) return null
+  return isGroup(family) ? <GroupBoard user={user} group={family} /> : <FamilyBoard user={user} family={family} />
+}
+
+// Shared: fullscreen toggle + "flash when points go up".
+function useFullscreen() {
   const [isFs, setIsFs] = useState(false)
+  useEffect(() => {
+    const onFs = () => setIsFs(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
+  const toggle = () => {
+    if (document.fullscreenElement) document.exitFullscreen?.()
+    else document.documentElement.requestFullscreen?.()
+  }
+  return [isFs, toggle]
+}
 
-  const kids = useCollection('users', (all) =>
-    all.filter((u) => u.family_id === user?.family_id && u.role === 'child')
-      .sort((a, b) => (b.seed_balance || 0) - (a.seed_balance || 0) || a.full_name.localeCompare(b.full_name))
-  )
-  const announcements = useCollection('announcements', (all) =>
-    all.filter((a) => a.family_id === user?.family_id)
-      .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || new Date(b.created_at) - new Date(a.created_at))
-  )
-
-  // Flash a card when its points go up.
+function usePointFlash(kids) {
   const prev = useRef({})
   const [flash, setFlash] = useState({})
   useEffect(() => {
@@ -43,26 +51,35 @@ export default function Display() {
       return () => clearTimeout(t)
     }
   }, [kids])
+  return flash
+}
 
-  useEffect(() => {
-    const onFs = () => setIsFs(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onFs)
-    return () => document.removeEventListener('fullscreenchange', onFs)
-  }, [])
+function BoardControls({ isFs, toggleFs, onExit }) {
+  return (
+    <div className="flex gap-2">
+      <button onClick={toggleFs} className="rounded-xl bg-white/10 p-3 hover:bg-white/20" aria-label="Fullscreen">
+        {isFs ? <Minimize className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
+      </button>
+      <button onClick={onExit} className="rounded-xl bg-white/10 p-3 hover:bg-white/20" aria-label="Exit board">
+        <X className="h-6 w-6" />
+      </button>
+    </div>
+  )
+}
 
-  function toggleFs() {
-    if (document.fullscreenElement) document.exitFullscreen?.()
-    else document.documentElement.requestFullscreen?.()
-  }
-
-  if (!user) return null
-  if (!isGroup(group)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-emerald-950 text-white">
-        <p>The big-screen board is for classrooms &amp; teams.</p>
-      </div>
-    )
-  }
+// ---- Group board (classroom monitor) --------------------------------------
+function GroupBoard({ user, group }) {
+  const navigate = useNavigate()
+  const [isFs, toggleFs] = useFullscreen()
+  const kids = useCollection('users', (all) =>
+    all.filter((u) => u.family_id === user?.family_id && u.role === 'child')
+      .sort((a, b) => (b.seed_balance || 0) - (a.seed_balance || 0) || a.full_name.localeCompare(b.full_name))
+  )
+  const announcements = useCollection('announcements', (all) =>
+    all.filter((a) => a.family_id === user?.family_id)
+      .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || new Date(b.created_at) - new Date(a.created_at))
+  )
+  const flash = usePointFlash(kids)
   const type = groupTypeOf(group)
   const total = kids.reduce((s, k) => s + (k.seed_balance || 0), 0)
   const label = seedLabel()
@@ -70,7 +87,6 @@ export default function Display() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-800 to-emerald-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6 sm:px-10 sm:py-8">
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -81,30 +97,17 @@ export default function Display() {
               {kids.length} on the team · {total} {label.toLowerCase()} earned together 🌟
             </p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={toggleFs} className="rounded-xl bg-white/10 p-3 hover:bg-white/20" aria-label="Fullscreen">
-              {isFs ? <Minimize className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
-            </button>
-            <button onClick={() => navigate('/Roster')} className="rounded-xl bg-white/10 p-3 hover:bg-white/20" aria-label="Exit board">
-              <X className="h-6 w-6" />
-            </button>
-          </div>
+          <BoardControls isFs={isFs} toggleFs={toggleFs} onExit={() => navigate('/Roster')} />
         </div>
 
-        {/* Leaderboard */}
         {kids.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center">
-            <p className="text-2xl text-emerald-200">Add kids to your roster to start the board.</p>
-          </div>
+          <div className="flex flex-1 items-center justify-center"><p className="text-2xl text-emerald-200">Add kids to your roster to start the board.</p></div>
         ) : (
           <div className="mt-8 grid flex-1 auto-rows-min grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {kids.map((kid, i) => (
-              <DisplayRow key={kid.id} kid={kid} rank={i} flashBy={flash[kid.id]} label={label} />
-            ))}
+            {kids.map((kid, i) => <GroupRow key={kid.id} kid={kid} rank={i} flashBy={flash[kid.id]} label={label} />)}
           </div>
         )}
 
-        {/* Announcements ticker */}
         {announcements.length > 0 && (
           <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
             <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
@@ -122,19 +125,13 @@ export default function Display() {
   )
 }
 
-function DisplayRow({ kid, rank, flashBy, label }) {
+function GroupRow({ kid, rank, flashBy, label }) {
   const photo = useRosterPhoto(kid.id)
   const shown = photo ? { ...kid, avatar_photo: photo } : kid
   const top = rank < 3
   return (
-    <div
-      className={`relative flex items-center gap-4 rounded-2xl px-5 py-4 transition-all duration-500 ${
-        top ? 'bg-white/20' : 'bg-white/10'
-      } ${flashBy ? 'scale-[1.03] ring-4 ring-amber-300' : ''}`}
-    >
-      <span className="w-10 text-center text-3xl font-black sm:text-4xl">
-        {MEDALS[rank] || <span className="text-emerald-200">{rank + 1}</span>}
-      </span>
+    <div className={`relative flex items-center gap-4 rounded-2xl px-5 py-4 transition-all duration-500 ${top ? 'bg-white/20' : 'bg-white/10'} ${flashBy ? 'scale-[1.03] ring-4 ring-amber-300' : ''}`}>
+      <span className="w-10 text-center text-3xl font-black sm:text-4xl">{MEDALS[rank] || <span className="text-emerald-200">{rank + 1}</span>}</span>
       <Avatar user={shown} size="lg" ring />
       <div className="min-w-0 flex-1">
         <p className="truncate text-2xl font-extrabold sm:text-3xl">{kid.full_name}</p>
@@ -143,6 +140,81 @@ function DisplayRow({ kid, rank, flashBy, label }) {
       <div className="text-right">
         <p className="text-4xl font-black tabular-nums sm:text-5xl">{kid.seed_balance || 0}</p>
         {flashBy ? <p className="text-lg font-black text-amber-300">+{flashBy}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+// ---- Family board (kitchen tablet) ----------------------------------------
+// Warm and equal — no sibling ranking. Everyone's growth is celebrated.
+function FamilyBoard({ user, family }) {
+  const navigate = useNavigate()
+  const [isFs, toggleFs] = useFullscreen()
+  const kids = useCollection('users', (all) =>
+    all.filter((u) => u.family_id === user?.family_id && u.role === 'child').sort((a, b) => a.full_name.localeCompare(b.full_name))
+  )
+  const tasks = useCollection('tasks', (all) => all.filter((t) => t.family_id === user?.family_id && t.status === 'active'))
+  useCollection('completions') // subscribe so "tasks left" recomputes on approval
+  const flash = usePointFlash(kids)
+  const label = seedLabel()
+  const verse = getVerseForDate(new Date())
+
+  function tasksLeft(kidId) {
+    const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
+    const today = new Date().toDateString()
+    const done = applies.filter((t) => {
+      const c = latestCompletion(t.id, kidId)
+      return c && new Date(c.submitted_date).toDateString() === today && (c.status === 'approved' || c.status === 'pending_approval')
+    })
+    return applies.length - done.length
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-seed-600 via-green-600 to-emerald-700 text-white">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-6 sm:px-10 sm:py-8">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="text-4xl sm:text-5xl">{family?.avatar_emoji || '🏡'}</span>
+              <h1 className="text-4xl font-black tracking-tight sm:text-6xl">{family?.name || 'Our Family'}</h1>
+            </div>
+            <p className="mt-2 text-lg font-semibold text-green-100 sm:text-2xl">Plant good seeds, watch your family grow 🌱</p>
+          </div>
+          <BoardControls isFs={isFs} toggleFs={toggleFs} onExit={() => navigate('/Dashboard')} />
+        </div>
+
+        {kids.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center"><p className="text-2xl text-green-100">Add your kids to see the family board.</p></div>
+        ) : (
+          <div className="mt-8 grid flex-1 auto-rows-min grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {kids.map((kid) => {
+              const left = tasksLeft(kid.id)
+              const bump = flash[kid.id]
+              return (
+                <div key={kid.id} className={`flex flex-col items-center gap-3 rounded-3xl bg-white/15 px-6 py-6 text-center backdrop-blur transition-all duration-500 ${bump ? 'scale-[1.03] ring-4 ring-amber-300' : ''}`}>
+                  <Avatar user={kid} size="xl" ring />
+                  <p className="text-2xl font-extrabold sm:text-3xl">{kid.full_name}</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-black tabular-nums sm:text-6xl">{kid.seed_balance || 0}</span>
+                    <span className="text-lg font-semibold text-green-100">🌱 {label.toLowerCase()}</span>
+                    {bump ? <span className="text-xl font-black text-amber-300">+{bump}</span> : null}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
+                    {(kid.streak_current || 0) > 0 && <span className="rounded-full bg-white/15 px-3 py-1">🔥 {kid.streak_current} day{kid.streak_current === 1 ? '' : 's'}</span>}
+                    <span className="rounded-full bg-white/15 px-3 py-1">⭐ Level {kid.level || 1}</span>
+                    <span className="rounded-full bg-white/15 px-3 py-1">{left > 0 ? `📋 ${left} to do` : '✅ All done!'}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 text-center backdrop-blur">
+          <p className="text-xs font-black uppercase tracking-widest text-green-200">Verse of the Day</p>
+          <p className="mt-1 text-lg font-semibold italic sm:text-2xl">“{verse.verse_text}”</p>
+          <p className="mt-1 text-sm font-bold text-green-100">{verse.reference}</p>
+        </div>
       </div>
     </div>
   )
