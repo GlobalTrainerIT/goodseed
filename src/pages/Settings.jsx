@@ -126,6 +126,7 @@ export default function Settings() {
     a.download = `goodseed-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
+    updateSettings({ lastBackupAt: new Date().toISOString() })
     toast({ title: 'Backup downloaded!', emoji: '💾' })
   }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Sprout, Crown, Baby, Trophy, ArrowLeft, ArrowRight } from 'lucide-react'
-import { Card, Button, Input, Label } from '@/components/ui'
+import { Sprout, Crown, Baby, Trophy, ArrowLeft, ArrowRight, Copy, Mail, KeyRound } from 'lucide-react'
+import { Card, Button, Input, Label, Dialog } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import { getAll, create } from '@/lib/db'
 import { login } from '@/lib/auth'
@@ -11,6 +11,7 @@ import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
 import { DEFAULT_POINT_PRESETS } from '@/lib/constants'
 import { updateSettings } from '@/lib/db'
+import { toast } from '@/lib/toast'
 
 export default function Welcome() {
   const navigate = useNavigate()
@@ -31,6 +32,10 @@ export default function Welcome() {
   // coach fields
   const [groupName, setGroupName] = useState('')
   const [groupType, setGroupType] = useState('class')
+
+  // "Save your code" moment shown right after creating a family/group.
+  // { code, name, email, next } — navigation waits until they've saved it.
+  const [savedCode, setSavedCode] = useState(null)
 
   useEffect(() => {
     const join = params.get('join')
@@ -78,8 +83,18 @@ export default function Welcome() {
       parentPinEnabled: false,
       notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS },
     })
-    login(parent.id)
-    navigate('/Onboarding', { state: { familyId: family.id } })
+    // Show the code before signing in — it's the only key back into this
+    // family. (Logging in first would redirect off /Welcome and skip this.)
+    setSavedCode({
+      code: family.invite_code,
+      name: family.name,
+      email: pEmail.trim(),
+      where: 'Family → Invite',
+      next: () => {
+        login(parent.id)
+        navigate('/Onboarding', { state: { familyId: family.id } })
+      },
+    })
   }
 
   // A coach/teacher creating a classroom, team, daycare, or church group.
@@ -127,8 +142,16 @@ export default function Welcome() {
       pointPresets: DEFAULT_POINT_PRESETS.map((p) => ({ ...p })),
       notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS },
     })
-    login(coach.id)
-    navigate('/Roster')
+    setSavedCode({
+      code: group.invite_code,
+      name: group.name,
+      email: pEmail.trim(),
+      where: 'the Roster page',
+      next: () => {
+        login(coach.id)
+        navigate('/Roster')
+      },
+    })
   }
 
   // A second parent joining an existing family on their own device.
@@ -377,6 +400,8 @@ export default function Welcome() {
         </Card>
       )}
 
+      <SaveCodeDialog info={savedCode} onDone={() => { const go = savedCode?.next; setSavedCode(null); go?.() }} />
+
       {mode === 'coach' && (
         <Card className="w-full max-w-md p-6">
           <h2 className="mb-1 text-lg font-bold text-gray-900 dark:text-gray-100">Set up your group</h2>
@@ -540,5 +565,52 @@ export default function Welcome() {
         </Card>
       )}
     </div>
+  )
+}
+
+// Shown once, right after a family/group is created. The invite code is the
+// only key back in (there's no password reset), so we make saving it a
+// deliberate step rather than something buried in a settings page.
+function SaveCodeDialog({ info, onDone }) {
+  const [copied, setCopied] = useState(false)
+  if (!info) return null
+
+  const subject = `My GoodSeed code for ${info.name}`
+  const body = `Keep this safe!\n\nGoodSeed code for ${info.name}: ${info.code}\n\nYou'll need it to add a device or let your kids join.\n${window.location.origin}/Welcome`
+  const mailto = `mailto:${info.email || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+
+  function copy() {
+    navigator.clipboard?.writeText(info.code)
+    setCopied(true)
+    toast({ title: 'Code copied!', message: 'Paste it somewhere safe.', emoji: '📋' })
+  }
+
+  return (
+    <Dialog
+      open={!!info}
+      onClose={onDone}
+      title="Save your code 🔑"
+      description={`This is the key to ${info.name}. You'll need it to add a device or let your kids join.`}
+      footer={<Button onClick={onDone}>I've saved it — continue</Button>}
+    >
+      <div className="space-y-4">
+        <div className="rounded-2xl border-2 border-seed-500 bg-seed-50 p-5 text-center dark:bg-seed-900/30">
+          <p className="text-xs font-bold uppercase tracking-widest text-seed-700 dark:text-seed-400">Your code</p>
+          <p className="mt-1 font-mono text-4xl font-black tracking-[0.2em] text-seed-800 dark:text-seed-200">{info.code}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" className="flex-1" onClick={copy}>
+            <Copy className="h-4 w-4" /> {copied ? 'Copied!' : 'Copy code'}
+          </Button>
+          <a href={mailto} className="flex-1">
+            <Button variant="secondary" className="w-full"><Mail className="h-4 w-4" /> Email it to me</Button>
+          </a>
+        </div>
+        <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+          <KeyRound className="mr-1 inline h-3.5 w-3.5" />
+          <b>Write this down.</b> GoodSeed has no passwords and no code reset — if you lose this code and your device, we can't get you back in. You can always find it again later under <b>{info.where}</b>.
+        </p>
+      </div>
+    </Dialog>
   )
 }

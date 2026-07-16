@@ -8,6 +8,7 @@ import ShoutOutCard from '@/components/dashboard/ShoutOutCard'
 import LeaderboardCard from '@/components/dashboard/LeaderboardCard'
 import ChildHome from '@/components/child/ChildHome'
 import FollowedGroups from '@/components/dashboard/FollowedGroups'
+import BackupNudge from '@/components/dashboard/BackupNudge'
 import { Button } from '@/components/ui'
 import TaskForm from '@/components/tasks/TaskForm'
 import RewardForm from '@/components/rewards/RewardForm'
@@ -58,6 +59,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-5">
+        <BackupNudge />
         <FollowedGroups />
       </div>
 
