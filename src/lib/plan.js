@@ -66,8 +66,12 @@ export function groupTypeOf(family) {
 /** Days of trial remaining (0 when expired; null for non-groups). */
 export function trialDaysLeft(family) {
   if (!isGroup(family)) return null
-  const started = new Date(family.created_at || Date.now()).getTime()
-  const ends = started + TEAMS_PLAN.trialDays * 24 * 60 * 60 * 1000
+  // NOTE: the store stamps `created_date` (not `created_at`). Reading the wrong
+  // field made `started` fall back to "now" on every call, so the trial reset
+  // continuously and could never expire — Teams was free forever.
+  const stamp = family.created_date || family.created_at
+  if (!stamp) return 0 // unknown age: fail closed rather than grant a free ride
+  const ends = new Date(stamp).getTime() + TEAMS_PLAN.trialDays * 24 * 60 * 60 * 1000
   return Math.max(0, Math.ceil((ends - Date.now()) / (24 * 60 * 60 * 1000)))
 }
 

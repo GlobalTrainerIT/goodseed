@@ -13,6 +13,7 @@ import { AVATAR_EMOJIS, AVATAR_COLORS, DEFAULT_POINT_PRESETS } from '@/lib/const
 import { FRUIT_OF_SPIRIT } from '@/lib/faith'
 import { useRosterPhoto, setRosterPhoto, removeRosterPhoto } from '@/lib/rosterPhotos'
 import { createParentLink } from '@/lib/groupLink'
+import { resolveKidCode, linkKidToGroup } from '@/lib/kidCode'
 import { fileToDataUrl } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 
@@ -547,14 +548,17 @@ function BehaviorsDialog({ open, presets, onClose }) {
 }
 
 function AddKidDialog({ open, group, kidCount, onClose }) {
+  const [tab, setTab] = useState('name') // 'name' = anyone · 'code' = already uses GoodSeed
   const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const allowed = canAddChild(group, kidCount)
 
-  function save(keepOpen) {
-    if (!name.trim() || !allowed) return
-    create('users', {
+  function newKid(fullName) {
+    return create('users', {
       family_id: group.id,
-      full_name: name.trim(),
+      full_name: fullName,
       email: '',
       role: 'child',
       age: null,
@@ -569,9 +573,50 @@ function AddKidDialog({ open, group, kidCount, onClose }) {
       level: 1,
       managed: true,
     })
+  }
+
+  function save(keepOpen) {
+    if (!name.trim() || !allowed) return
+    newKid(name.trim())
     toast({ title: `${name.trim()} added!`, emoji: '🎉' })
     setName('')
     if (!keepOpen) onClose()
+  }
+
+  // Add a child who already uses GoodSeed, by their one permanent code. Their
+  // points here roll up to their family automatically — no follow step.
+  async function addByCode() {
+    if (!code.trim() || !allowed) return
+    setError('')
+    setBusy(true)
+    const found = await resolveKidCode(code)
+    if (found?.error) {
+      setBusy(false)
+      setError(found.error === 'not_found' ? "That code didn't match a child. Double-check it with their parent." : found.error)
+      return
+    }
+    const kid = newKid(found.child_name)
+    const link = await linkKidToGroup({
+      kidCode: code.trim().toUpperCase(),
+      homeFamilyId: found.home_family_id,
+      homeChildId: found.home_child_id,
+      groupFamilyId: group.id,
+      groupChildId: kid.id,
+      groupName: group.name,
+    })
+    setBusy(false)
+    if (link?.error) {
+      remove('users', kid.id) // don't leave an unlinked/duplicate roster entry behind
+      setError(
+        link.error === 'already_in_group'
+          ? `${found.child_name} is already on this roster.`
+          : link.error
+      )
+      return
+    }
+    toast({ title: `${found.child_name} added!`, message: 'Their points will show up for their family at home.', emoji: '🔗' })
+    setCode('')
+    onClose()
   }
 
   return (
@@ -579,21 +624,55 @@ function AddKidDialog({ open, group, kidCount, onClose }) {
       open={open}
       onClose={onClose}
       title="Add to roster"
-      description="Just a first name — no account, email, or device needed."
+      description="Add anyone by first name, or use their GoodSeed code to link them to their family."
       footer={
-        <>
-          <Button variant="outline" onClick={onClose}>Done</Button>
-          <Button variant="secondary" onClick={() => save(true)} disabled={!name.trim() || !allowed}>Save & add another</Button>
-          <Button onClick={() => save(false)} disabled={!name.trim() || !allowed}>Add</Button>
-        </>
+        tab === 'name' ? (
+          <>
+            <Button variant="outline" onClick={onClose}>Done</Button>
+            <Button variant="secondary" onClick={() => save(true)} disabled={!name.trim() || !allowed}>Save &amp; add another</Button>
+            <Button onClick={() => save(false)} disabled={!name.trim() || !allowed}>Add</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={addByCode} disabled={!code.trim() || !allowed || busy}>{busy ? 'Checking…' : 'Add by code'}</Button>
+          </>
+        )
       }
     >
       <div className="space-y-3">
-        <div>
-          <Label>First name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" autoFocus
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(true) } }} />
+        <div className="flex gap-2">
+          {[['name', '✏️ By name'], ['code', '🔗 By GoodSeed code']].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => { setTab(id); setError('') }}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === id ? 'bg-seed-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+
+        {tab === 'name' ? (
+          <div>
+            <Label>First name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sam" autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(true) } }} />
+            <p className="mt-1.5 text-xs text-gray-400">No account, email, or device needed.</p>
+          </div>
+        ) : (
+          <div>
+            <Label>Their GoodSeed code</Label>
+            <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. GS-K7M2X" maxLength={9}
+              className="text-center text-lg font-bold tracking-widest" autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addByCode() } }} />
+            <p className="mt-1.5 text-xs text-gray-400">
+              Ask their parent for the child's code. Same code every season — their points here will count toward their total at home.
+            </p>
+          </div>
+        )}
+
+        {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-300">{error}</p>}
         {!allowed && (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-300">
             Your trial has ended — subscribe to Teams in Settings to grow the roster.

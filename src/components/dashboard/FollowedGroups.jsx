@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users, Plus, RefreshCw, X, Trophy } from 'lucide-react'
+import { Users, Plus, RefreshCw, X, Trophy, Copy } from 'lucide-react'
 import { Card, Button, Input, Label, Dialog, Badge } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection } from '@/lib/hooks'
@@ -8,6 +8,7 @@ import {
   refreshFollowed, computeRollup,
 } from '@/lib/groupLink'
 import { levelRank } from '@/lib/faith'
+import { ensureKidCode, refreshKidGroups, useKidGroups, regenerateKidCode } from '@/lib/kidCode'
 import { toast } from '@/lib/toast'
 
 // Parent-side: follow a child's team/class by code. Points there roll up into
@@ -16,32 +17,50 @@ import { toast } from '@/lib/toast'
 export default function FollowedGroups() {
   const user = useCurrentUser()
   const { followed } = useFollowedData()
+  const discovered = useKidGroups()
   const kids = useCollection('users', (all) =>
     all.filter((u) => u.family_id === user?.family_id && u.role === 'child')
   )
   const [adding, setAdding] = useState(false)
 
-  useEffect(() => { refreshFollowed() }, [followed.length]) // fetch snapshots for the rollup
+  useEffect(() => { refreshFollowed() }, [followed.length]) // legacy manual follows
+  // Auto-discover every group each child is in, via their one permanent code.
+  useEffect(() => {
+    kids.forEach((k) => ensureKidCode(k))
+    refreshKidGroups(kids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kids.length])
 
-  if (followed.length === 0) {
+  const anyDiscovered = kids.some((k) => (discovered[k.id] || []).length > 0)
+
+  if (followed.length === 0 && !anyDiscovered) {
     return (
       <>
-        <Card className="mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40"><Users className="h-5 w-5 text-blue-600" /></span>
-            <div>
-              <p className="font-semibold text-gray-900 dark:text-gray-100">Following a team or class?</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">A coach's code lets your child's school & sports points count toward their total at home.</p>
+        <Card className="mb-5 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40"><Users className="h-5 w-5 text-blue-600" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-gray-900 dark:text-gray-100">In a team, class, or church group?</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Give your child's code to their coach or teacher. One code per child — the same one every season, for every group.
+              </p>
+              <div className="mt-3 space-y-2">
+                {kids.map((kid) => <KidCodeRow key={kid.id} kid={kid} />)}
+              </div>
+              <button onClick={() => setAdding(true)} className="mt-3 text-xs font-medium text-seed-700 hover:underline dark:text-seed-400">
+                Got a code from a coach instead? Add it here →
+              </button>
             </div>
           </div>
-          <Button variant="secondary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Add a group</Button>
         </Card>
         <FollowDialog open={adding} kids={kids} onClose={() => setAdding(false)} />
       </>
     )
   }
 
-  const kidsWithGroups = kids.filter((k) => followed.some((f) => f.childId === k.id))
+  const kidsWithGroups = kids.filter(
+    (k) => followed.some((f) => f.childId === k.id) || (discovered[k.id] || []).length > 0
+  )
 
   return (
     <div className="mb-5">
@@ -55,6 +74,35 @@ export default function FollowedGroups() {
         {kidsWithGroups.map((kid) => <ChildRollupCard key={kid.id} kid={kid} />)}
       </div>
       <FollowDialog open={adding} kids={kids} onClose={() => setAdding(false)} />
+    </div>
+  )
+}
+
+// A child's ONE permanent code — hand it to any coach/teacher, every season.
+function KidCodeRow({ kid }) {
+  const code = ensureKidCode(kid)
+  if (!code) return null
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-gray-100 p-2 dark:border-gray-800">
+      <Avatar user={kid} size="xs" />
+      <span className="flex-1 truncate text-sm font-semibold text-gray-800 dark:text-gray-200">{kid.full_name}</span>
+      <button
+        onClick={() => { navigator.clipboard?.writeText(code); toast({ title: 'Code copied!', message: `${kid.full_name}'s code — give it to their coach.`, emoji: '📋' }) }}
+        className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 font-mono text-sm font-bold tracking-wider text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+      >
+        {code} <Copy className="h-3 w-3 text-gray-400" />
+      </button>
+      <button
+        onClick={async () => {
+          if (!confirm(`Give ${kid.full_name} a new code? Any group using the old one will be disconnected.`)) return
+          await regenerateKidCode(kid)
+          toast({ title: 'New code created', message: 'Share it with their coaches.', emoji: '🔄' })
+        }}
+        className="rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+        aria-label={`New code for ${kid.full_name}`}
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
+      </button>
     </div>
   )
 }
@@ -99,9 +147,13 @@ function ChildRollupCard({ kid }) {
         {roll.groups.map((g) => (
           <span key={g.code} className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
             <Trophy className="h-3 w-3" /> {g.name} {g.total == null ? '…' : g.total}
-            <button onClick={() => { removeFollowedGroup(g.code); toast({ title: 'Unfollowed', emoji: '👋' }) }} className="ml-0.5 text-blue-400 hover:text-red-500" aria-label={`Unfollow ${g.name}`}>
-              <X className="h-3 w-3" />
-            </button>
+            {/* Auto-linked groups are managed by the coach's roster + the kid's
+                code — the parent cuts those by regenerating the code instead. */}
+            {!g.auto && (
+              <button onClick={() => { removeFollowedGroup(g.code); toast({ title: 'Unfollowed', emoji: '👋' }) }} className="ml-0.5 text-blue-400 hover:text-red-500" aria-label={`Unfollow ${g.name}`}>
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </span>
         ))}
       </div>
@@ -116,6 +168,9 @@ function ChildRollupCard({ kid }) {
         </div>
       )}
       <p className="mt-2 text-xs text-gray-400">School &amp; sports points grow {kid.full_name}'s total and level — they're not spendable home Seeds.</p>
+      <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+        <KidCodeRow kid={kid} />
+      </div>
     </Card>
   )
 }

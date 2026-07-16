@@ -12,6 +12,7 @@ import { ensureSession } from './sync'
 import { generateInviteCode } from './utils'
 import { LEVEL_THRESHOLDS } from './constants'
 import { levelRank } from './faith'
+import { kidGroupsFor } from './kidCode'
 
 // ---- coach: mint a share code for one roster kid --------------------------
 export async function createParentLink(child) {
@@ -137,18 +138,35 @@ function levelFromXp(xp) {
 export function computeRollup(child) {
   const homeTotal = child?.total_seeds_earned || 0
   const homeXp = child?.xp || 0
-  const mine = followed.filter((f) => f.childId === child?.id)
-  const groups = mine.map((f) => {
-    const snap = snapshots[f.code]
-    return {
-      code: f.code,
-      name: snap?.group_name || f.groupName,
-      total: snap?.total_earned ?? null, // null = not fetched yet
-      points: snap?.points ?? null,
-    }
-  })
+
+  // Groups found automatically via the child's ONE permanent kid code.
+  const auto = kidGroupsFor(child?.id).map((g) => ({
+    code: g.group_family_id,
+    name: g.group_name,
+    total: g.total_earned ?? 0,
+    points: g.points ?? 0,
+    auto: true,
+  }))
+
+  // Legacy path: groups the parent linked by hand (for roster-only kids added
+  // by name). Skip any already found by kid code so nothing double-counts.
+  const seen = new Set(auto.map((g) => g.name))
+  const manual = followed
+    .filter((f) => f.childId === child?.id)
+    .map((f) => {
+      const snap = snapshots[f.code]
+      return {
+        code: f.code,
+        name: snap?.group_name || f.groupName,
+        total: snap?.total_earned ?? null, // null = not fetched yet
+        points: snap?.points ?? null,
+      }
+    })
+    .filter((g) => !seen.has(g.name))
+
+  const groups = [...auto, ...manual]
   const groupTotal = groups.reduce((s, g) => s + (g.total || 0), 0)
   const grandTotal = homeTotal + groupTotal
   const level = levelFromXp(homeXp + groupTotal * 2)
-  return { groups, homeTotal, groupTotal, grandTotal, level, rank: levelRank(level), hasGroups: mine.length > 0 }
+  return { groups, homeTotal, groupTotal, grandTotal, level, rank: levelRank(level), hasGroups: groups.length > 0 }
 }

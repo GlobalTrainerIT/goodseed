@@ -84,6 +84,21 @@ export function generateInviteCode() {
   return code
 }
 
+/**
+ * A child's permanent personal code — one per kid, reused for every group they
+ * ever join (soccer, school, church). Longer than a family code because it's
+ * handed to people outside the family, so it must not be guessable.
+ * Format: GS-XXXXXX (ambiguous characters omitted).
+ */
+export function generateKidCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return `GS-${code}`
+}
+
 export function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
 }
