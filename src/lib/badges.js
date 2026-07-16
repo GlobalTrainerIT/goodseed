@@ -94,6 +94,48 @@ export const BADGE_DEFS = [
         (cat) => (c.byCategory[cat] || 0) >= 1
       ),
   },
+
+  // ---- Faith & character achievements (each carries a verse) --------------
+  {
+    badge_type: 'good_samaritan',
+    title: 'Good Samaritan',
+    description: 'Did 15 acts of kindness — "Love your neighbor as yourself." (Luke 10:27)',
+    icon_emoji: '💛',
+    check: (c) => (c.byCategory.kindness || 0) >= 15,
+    bonusSeeds: 10,
+  },
+  {
+    badge_type: 'faithful_steward',
+    title: 'Faithful Steward',
+    description: 'Kept a 14-day streak — "Whoever is faithful in little is faithful in much." (Luke 16:10)',
+    icon_emoji: '🗝️',
+    check: (c) => c.streakBest >= 14,
+    bonusSeeds: 10,
+  },
+  {
+    badge_type: 'diligent_worker',
+    title: 'Diligent Worker',
+    description: 'Completed 100 tasks — "Work at it with all your heart, as working for the Lord." (Colossians 3:23)',
+    icon_emoji: '🛠️',
+    check: (c) => c.tasksCompleted >= 100,
+    bonusSeeds: 15,
+  },
+  {
+    badge_type: 'encourager',
+    title: 'Encourager',
+    description: 'Gave 3 shout-outs — "Encourage one another and build each other up." (1 Thessalonians 5:11)',
+    icon_emoji: '💬',
+    check: (c) => c.shoutoutsGiven >= 3,
+    bonusSeeds: 5,
+  },
+  {
+    badge_type: 'good_and_faithful',
+    title: 'Good & Faithful',
+    description: 'Earned 250 seeds — "Well done, good and faithful servant." (Matthew 25:21)',
+    icon_emoji: '👑',
+    check: (c) => c.totalSeedsEarned >= 250,
+    bonusSeeds: 15,
+  },
 ]
 
 export function getBadgeDef(type) {

@@ -5,6 +5,7 @@
 import { getAll, getById, create, update, getSettings, updateSettings } from './db'
 import { BADGE_DEFS } from './badges'
 import { LEVEL_THRESHOLDS } from './constants'
+import { levelRank, crossedRank } from './faith'
 import { toast } from './toast'
 import { clamp } from './utils'
 
@@ -35,9 +36,16 @@ export function addXp(userId, amount) {
   const newLevel = levelFromXp(newXp)
   update('users', userId, { xp: newXp, level: newLevel })
   if (newLevel > oldLevel) {
-    addActivity(user.family_id, userId, 'level_up', `${user.full_name} reached Level ${newLevel}!`, 0)
-    notify(userId, 'family', 'Level Up! 🎉', `You're now Level ${newLevel}!`, '/ChildProfile/' + userId)
-    toast({ title: 'Level Up!', message: `${user.full_name} is now Level ${newLevel}!`, emoji: '⭐' })
+    const rank = levelRank(newLevel)
+    const grewRank = crossedRank(oldLevel, newLevel)
+    addActivity(user.family_id, userId, 'level_up', `${user.full_name} reached Level ${newLevel} — ${rank.name}!`, 0)
+    if (grewRank) {
+      notify(userId, 'family', `You grew into a ${rank.name}! ${rank.emoji}`, `Level ${newLevel} — keep growing good fruit!`, '/ChildProfile/' + userId)
+      toast({ title: `${rank.emoji} ${rank.name}!`, message: `${user.full_name} grew to a ${rank.name} (Level ${newLevel})!`, emoji: rank.emoji })
+    } else {
+      notify(userId, 'family', 'Level Up! 🎉', `You're now Level ${newLevel} (${rank.name})!`, '/ChildProfile/' + userId)
+      toast({ title: 'Level Up!', message: `${user.full_name} is now Level ${newLevel}!`, emoji: '⭐' })
+    }
   }
 }
 
@@ -148,12 +156,14 @@ function childBadgeContext(childId) {
     byCategory[task.category] = (byCategory[task.category] || 0) + 1
     if (!task.assigned_children || task.assigned_children.length === 0) allChildrenTasks += 1
   })
+  const shoutoutsGiven = getAll('shoutouts').filter((s) => s.from_user_id === childId).length
   return {
     tasksCompleted: approved.length,
     totalSeedsEarned: child?.total_seeds_earned || 0,
     streakBest: child?.streak_longest || 0,
     byCategory,
     allChildrenTasks,
+    shoutoutsGiven,
   }
 }
 

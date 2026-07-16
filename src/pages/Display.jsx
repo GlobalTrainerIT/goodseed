@@ -6,6 +6,7 @@ import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
 import { seedLabel, taskAppliesTo, latestCompletion } from '@/lib/domain'
 import { getVerseForDate } from '@/lib/verses'
+import { levelRank } from '@/lib/faith'
 import { groupTypeOf, isGroup } from '@/lib/plan'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -201,7 +202,7 @@ function FamilyBoard({ user, family }) {
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
                     {(kid.streak_current || 0) > 0 && <span className="rounded-full bg-white/15 px-3 py-1">🔥 {kid.streak_current} day{kid.streak_current === 1 ? '' : 's'}</span>}
-                    <span className="rounded-full bg-white/15 px-3 py-1">⭐ Level {kid.level || 1}</span>
+                    <span className="rounded-full bg-white/15 px-3 py-1">{levelRank(kid.level || 1).emoji} {levelRank(kid.level || 1).name}</span>
                     <span className="rounded-full bg-white/15 px-3 py-1">{left > 0 ? `📋 ${left} to do` : '✅ All done!'}</span>
                   </div>
                 </div>

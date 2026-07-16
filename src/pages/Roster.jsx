@@ -10,6 +10,7 @@ import { create, remove, getById, updateSettings } from '@/lib/db'
 import { awardSeeds, deductSeeds, seedLabel } from '@/lib/domain'
 import { canAddChild, trialDaysLeft, teamsActive, groupTypeOf } from '@/lib/plan'
 import { AVATAR_EMOJIS, AVATAR_COLORS, DEFAULT_POINT_PRESETS } from '@/lib/constants'
+import { FRUIT_OF_SPIRIT } from '@/lib/faith'
 import { useRosterPhoto, setRosterPhoto, removeRosterPhoto } from '@/lib/rosterPhotos'
 import { createParentLink } from '@/lib/groupLink'
 import { fileToDataUrl } from '@/lib/utils'
@@ -508,6 +509,14 @@ function BehaviorsDialog({ open, presets, onClose }) {
       }
     >
       <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setRows(FRUIT_OF_SPIRIT.map((f) => ({ ...f })))}>
+            🍇 Load Fruit of the Spirit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setRows(DEFAULT_POINT_PRESETS.map((p) => ({ ...p })))}>
+            Reset to defaults
+          </Button>
+        </div>
         <div className="space-y-2">
           {rows.map((p) => (
             <div key={p.id} className="flex items-center gap-2 rounded-lg border border-gray-100 p-2 dark:border-gray-800">

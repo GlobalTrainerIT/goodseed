@@ -6,6 +6,7 @@ import LevelProgress from '@/components/gamification/LevelProgress'
 import ChildTaskCard from './ChildTaskCard'
 import EmptyState from '@/components/shared/EmptyState'
 import SeedPackReveal from '@/components/gamification/SeedPackReveal'
+import { levelRank } from '@/lib/faith'
 import { useCollection } from '@/lib/hooks'
 import { taskAppliesTo, seedLabel } from '@/lib/domain'
 import { getVerseForDate } from '@/lib/verses'
@@ -41,7 +42,7 @@ export default function ChildHome({ child }) {
           <div className="flex items-center gap-2 text-sm font-semibold">
             🔥 {child.streak_current || 0} day streak
           </div>
-          <div className="text-sm font-semibold">Level {child.level || 1}</div>
+          <div className="text-sm font-semibold">{levelRank(child.level || 1).emoji} {levelRank(child.level || 1).name} · Lvl {child.level || 1}</div>
         </div>
       </Card>
 
