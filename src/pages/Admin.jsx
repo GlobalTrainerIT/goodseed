@@ -241,17 +241,25 @@ function AccountTable({ rows, onGrant, onRevoke, isGroup = false }) {
               <td className="px-4 py-2.5">{planBadge(f)}</td>
               <td className="px-4 py-2.5 text-gray-400">{f.last_active ? new Date(f.last_active).toLocaleDateString() : '—'}</td>
               <td className="px-4 py-2.5 text-right">
-                {f.sub?.comped ? (
-                  <Button size="sm" variant="outline" onClick={() => onRevoke(f)} className="border-red-200 text-red-600">
-                    <XCircle className="h-3.5 w-3.5" /> End comp
-                  </Button>
-                ) : f.sub?.stripe_subscription_id ? (
-                  <span className="text-xs text-gray-400">managed by Stripe</span>
-                ) : (
-                  <Button size="sm" variant="secondary" onClick={() => onGrant(f)}>
-                    <Gift className="h-3.5 w-3.5" /> Comp
-                  </Button>
-                )}
+                {(() => {
+                  const compActive =
+                    f.sub?.comped &&
+                    (f.sub.status === 'active' || f.sub.status === 'trialing') &&
+                    (!f.sub.current_period_end || new Date(f.sub.current_period_end) > new Date())
+                  if (compActive)
+                    return (
+                      <Button size="sm" variant="outline" onClick={() => onRevoke(f)} className="border-red-200 text-red-600">
+                        <XCircle className="h-3.5 w-3.5" /> End comp
+                      </Button>
+                    )
+                  if (f.sub?.stripe_subscription_id)
+                    return <span className="text-xs text-gray-400">managed by Stripe</span>
+                  return (
+                    <Button size="sm" variant="secondary" onClick={() => onGrant(f)}>
+                      <Gift className="h-3.5 w-3.5" /> Comp
+                    </Button>
+                  )
+                })()}
               </td>
             </tr>
           ))}

@@ -10,8 +10,8 @@ import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hooks'
 import { updateSettings, remove, resetAll, update } from '@/lib/db'
 import { deleteFamilyFromCloud } from '@/lib/sync'
-import { isPlus, planOf } from '@/lib/plan'
-import { fetchServerPlan, fetchSubscription, openBillingPortal } from '@/lib/billing'
+import { isPlus, planOf, isGroup, trialDaysLeft, teamsActive } from '@/lib/plan'
+import { fetchServerPlan, fetchSubscription, openBillingPortal, startCheckout } from '@/lib/billing'
 import { formatDate } from '@/lib/utils'
 import { CreditCard } from 'lucide-react'
 import UpgradeDialog from '@/components/shared/UpgradeDialog'
@@ -59,10 +59,10 @@ export default function Settings() {
   const [subInfo, setSubInfo] = useState(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
-  // Load renewal details for the plan card (Plus families).
+  // Load renewal details for the plan card (Plus families / Teams groups).
   useEffect(() => {
     let cancelled = false
-    if (plus && family?.id) {
+    if ((plus || family?.plan === 'teams') && family?.id) {
       fetchSubscription(family.id).then((s) => {
         if (!cancelled) setSubInfo(s)
       })
@@ -82,7 +82,8 @@ export default function Settings() {
   // seconds behind the redirect, so poll the server plan briefly and unlock the
   // moment it lands instead of looking like nothing happened.
   useEffect(() => {
-    if (!family || isPlus(family)) return
+    const expected = isGroup(family) ? 'teams' : 'plus'
+    if (!family || (family.plan || 'free') === expected) return
     if (!new URLSearchParams(window.location.search).has('upgraded')) return
     let cancelled = false
     let tries = 0
@@ -91,11 +92,15 @@ export default function Settings() {
       tries += 1
       try {
         const serverPlan = await fetchServerPlan(family.id)
-        if (!cancelled && serverPlan === 'plus') {
+        if (!cancelled && serverPlan === expected) {
           clearInterval(timer)
           setActivating(false)
-          update('families', family.id, { plan: 'plus' })
-          toast({ title: 'Welcome to GoodSeed Plus! 🎉', message: 'Everything is unlocked.', emoji: '✨' })
+          update('families', family.id, { plan: expected })
+          toast({
+            title: expected === 'teams' ? 'Welcome to GoodSeed Teams! 🏆' : 'Welcome to GoodSeed Plus! 🎉',
+            message: 'Everything is unlocked.',
+            emoji: '✨',
+          })
           return
         }
       } catch {
@@ -216,8 +221,63 @@ export default function Settings() {
         </Card>
       )}
 
+      {/* Plan — Teams groups (coach/teacher) */}
+      {isParent && isGroup(family) && (
+        <Card className={`mb-5 p-5 ${family.plan === 'teams' ? 'border-seed-200 dark:border-seed-800' : ''}`}>
+          {family.plan === 'teams' ? (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-1.5 font-bold text-gray-900 dark:text-gray-100">
+                  <Sparkles className="h-4 w-4 text-seed-600" /> GoodSeed Teams
+                </h3>
+                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Unlimited roster, co-leaders, and multi-device sync.</p>
+                {subInfo?.current_period_end && (
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {subInfo.comped ? 'Free access until' : subInfo.status === 'canceled' ? 'Access until' : 'Renews on'} {formatDate(subInfo.current_period_end)}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {!subInfo?.comped && (
+                  <Button size="sm" variant="outline" onClick={handleManageBilling} disabled={portalLoading}>
+                    <CreditCard className="h-3.5 w-3.5" /> {portalLoading ? 'Opening…' : 'Manage billing'}
+                  </Button>
+                )}
+                <span className="rounded-full bg-seed-100 px-3 py-1 text-xs font-bold text-seed-700 dark:bg-seed-900/40 dark:text-seed-300">Active</span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">GoodSeed Teams</h3>
+                  <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {teamsActive(family)
+                      ? `Trial — ${trialDaysLeft(family)} day${trialDaysLeft(family) === 1 ? '' : 's'} left. Everything is unlocked.`
+                      : 'Your trial has ended. Subscribe to keep awarding points and growing the roster.'}
+                  </p>
+                </div>
+                {activating && (
+                  <span className="animate-pulse rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Activating…</span>
+                )}
+              </div>
+              {!activating && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button onClick={() => startCheckout(family, 'teams_monthly')}>
+                    <Sparkles className="h-4 w-4" /> $12.99/month
+                  </Button>
+                  <Button variant="secondary" onClick={() => startCheckout(family, 'teams_yearly')}>
+                    $99/year — 2 months free
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Plan (parent only) */}
-      {isParent && (
+      {isParent && !isGroup(family) && (
         <Card className={`mb-5 p-5 ${plus ? 'border-seed-200 dark:border-seed-800' : ''}`}>
           <div className="flex items-center justify-between gap-3">
             <div>

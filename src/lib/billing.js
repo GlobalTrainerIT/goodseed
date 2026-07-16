@@ -20,7 +20,8 @@ export function billingConfigured() {
 /**
  * Start the Plus checkout for a family. Returns true if a redirect was started.
  */
-export async function startCheckout(family) {
+/** plan: 'plus' (default) | 'teams_monthly' | 'teams_yearly' */
+export async function startCheckout(family, plan = 'plus') {
   if (!family) return false
   if (!billingConfigured()) {
     toast({
@@ -36,6 +37,7 @@ export async function startCheckout(family) {
       body: {
         family_id: family.id,
         family_name: family.name,
+        plan,
         success_url: `${window.location.origin}/Settings?upgraded=1`,
         cancel_url: `${window.location.origin}/Settings`,
       },
@@ -109,7 +111,7 @@ export async function fetchSubscription(familyId) {
   try {
     const { data, error } = await supabase
       .from('subscriptions')
-      .select('plan,status,current_period_end')
+      .select('plan,status,current_period_end,comped')
       .eq('family_id', familyId)
       .limit(1)
     if (error || !data || !data.length) return null

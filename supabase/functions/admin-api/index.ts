@@ -145,8 +145,11 @@ Deno.serve(async (req) => {
     if (action === 'revoke') {
       const family_id = String(body.family_id || '')
       if (!family_id) return json({ error: 'family_id required' }, 400)
+      // Mark canceled rather than delete: clients poll this row to learn they
+      // were downgraded (a missing row reads as "no news", not "canceled").
       const { error } = await supabase
-        .from('subscriptions').delete()
+        .from('subscriptions')
+        .update({ status: 'canceled', updated_at: new Date().toISOString() })
         .eq('family_id', family_id).eq('comped', true) // comped rows only — Stripe rows untouchable
       if (error) return json({ error: error.message }, 500)
       return json({ ok: true })
