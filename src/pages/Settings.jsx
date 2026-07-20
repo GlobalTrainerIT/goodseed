@@ -11,7 +11,7 @@ import { useCurrentUser, useSettings, useCollection, useRecord } from '@/lib/hoo
 import { updateSettings, remove, resetAll, update } from '@/lib/db'
 import { deleteFamilyFromCloud } from '@/lib/sync'
 import { isPlus, planOf, isGroup, trialDaysLeft, teamsActive } from '@/lib/plan'
-import { fetchServerPlan, fetchSubscription, openBillingPortal, startCheckout, joinOrganization } from '@/lib/billing'
+import { fetchServerPlan, fetchSubscription, openBillingPortal, startCheckout, joinOrganization, syncLeaderCoverage } from '@/lib/billing'
 import { formatDate } from '@/lib/utils'
 import { CreditCard } from 'lucide-react'
 import UpgradeDialog from '@/components/shared/UpgradeDialog'
@@ -96,6 +96,8 @@ export default function Settings() {
           clearInterval(timer)
           setActivating(false)
           update('families', family.id, { plan: expected })
+          // A paid Teams subscription covers ALL of this coach's teams.
+          if (expected === 'teams') syncLeaderCoverage(family.id)
           toast({
             title: expected === 'teams' ? 'Welcome to GoodSeed Teams! 🏆' : 'Welcome to GoodSeed Plus! 🎉',
             message: 'Everything is unlocked.',

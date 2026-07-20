@@ -8,8 +8,8 @@ import { useCurrentUser } from '@/lib/hooks'
 import { runDailyMaintenance } from '@/lib/domain'
 import { initSync, teardownSync } from '@/lib/sync'
 import { getById, update } from '@/lib/db'
-import { isPlus, teamsActive } from '@/lib/plan'
-import { fetchServerPlan } from '@/lib/billing'
+import { isPlus, teamsActive, isGroup } from '@/lib/plan'
+import { fetchServerPlan, syncLeaderCoverage } from '@/lib/billing'
 
 // Route-level code splitting keeps the initial bundle small; heavy pages
 // (Reports → recharts, jsPDF) only load when visited.
@@ -90,6 +90,16 @@ export default function App() {
         if (cancelled) return
         if (shouldSync) {
           await initSync(fid)
+          // For groups: spread the leader's coverage across all their teams
+          // (and clear it if it lapsed), then re-read this team's plan.
+          if (!cancelled && isGroup(fam)) {
+            await syncLeaderCoverage(fid)
+            const p = await fetchServerPlan(fid) // 'teams' if covered, else null (trial/free)
+            if (!cancelled) {
+              const after0 = getById('families', fid)
+              if (after0 && (after0.plan || 'free') !== (p || 'free')) update('families', fid, { plan: p || 'free' })
+            }
+          }
           // Re-assert the server-authoritative plan after sync: a stale remote
           // family row must not downgrade what Stripe or the owner granted.
           if (!cancelled && serverPlan) {

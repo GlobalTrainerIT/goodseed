@@ -148,6 +148,27 @@ export async function joinOrganization(code, groupFamilyId) {
       }
     }
     if (data?.error) return data
+    // Entering an org code should cover EVERY team this leader runs.
+    try { await syncLeaderCoverage(groupFamilyId) } catch { /* best effort */ }
+    return data
+  } catch (e) {
+    return { error: String(e?.message || e) }
+  }
+}
+
+/**
+ * Spread one leader's coverage (a paid subscription or an org deal) across ALL
+ * of their teams, so one $119 or one org code covers everything they run. Safe
+ * to call any time; it recomputes from the current state.
+ */
+export async function syncLeaderCoverage(groupFamilyId) {
+  if (!billingConfigured() || !groupFamilyId) return { skipped: true }
+  try {
+    await ensureSession()
+    const { data, error } = await supabase.functions.invoke('leader-coverage', {
+      body: { action: 'sync', group_family_id: groupFamilyId },
+    })
+    if (error) return { error: error.message }
     return data
   } catch (e) {
     return { error: String(e?.message || e) }

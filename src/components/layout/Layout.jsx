@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import MobileHeader from './MobileHeader'
 import BottomTabBar from './BottomTabBar'
+import TeamSwitcher from './TeamSwitcher'
 import AnnouncementBanner from './AnnouncementBanner'
 import { PARENT_TABS, CHILD_TABS, GROUP_TABS } from './navConfig'
 import { useCurrentUser, useSettings, useRecord } from '@/lib/hooks'
@@ -38,6 +39,7 @@ export default function Layout() {
             <NotificationBell />
           </div>
         )}
+        <TeamSwitcher />
         <AnnouncementBanner />
         <main className="mx-auto min-h-screen w-full max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:pb-10">
           <ErrorBoundary label="page">

@@ -11,6 +11,7 @@ import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/lib/seedData'
 import { DEFAULT_POINT_PRESETS } from '@/lib/constants'
 import { updateSettings } from '@/lib/db'
+import { createCoachGroup } from '@/lib/teams'
 import { toast } from '@/lib/toast'
 
 export default function Welcome() {
@@ -106,42 +107,9 @@ export default function Welcome() {
       setError('Please enter your name and a group name.')
       return
     }
-    const type = GROUP_TYPES.find((t) => t.id === groupType) || GROUP_TYPES[0]
-    const group = create('families', {
-      name: groupName.trim(),
-      invite_code: generateInviteCode(),
-      avatar_emoji: type.emoji,
-      plan: 'free',
-      kind: 'group',
-      group_type: type.id,
-    })
-    const coach = create('users', {
-      family_id: group.id,
-      full_name: pName.trim(),
-      email: pEmail.trim(),
-      role: 'parent',
-      avatar_emoji: '🏅',
-      avatar_bg_color: '#bfdbfe',
-      seed_balance: 0,
-      total_seeds_earned: 0,
-      streak_current: 0,
-      streak_longest: 0,
-      streak_savers_available: 0,
-      xp: 0,
-      level: 1,
-    })
-    updateSettings({
-      family_id: group.id,
-      seedName: 'Points',
-      seedNameSingular: 'Point',
-      allowStreakSavers: false,
-      enableSeedPacks: false,
-      parentPin: '',
-      parentPinEnabled: false,
-      leaderboardMode: 'full',
-      pointPresets: DEFAULT_POINT_PRESETS.map((p) => ({ ...p })),
-      notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS },
-    })
+    // createCoachGroup stamps the owner_key, seeds group settings, and registers
+    // the team for the switcher — shared with the "+ New team" flow.
+    const { group, coach } = createCoachGroup({ name: groupName, typeId: groupType, coachName: pName, email: pEmail })
     setSavedCode({
       code: group.invite_code,
       name: group.name,
