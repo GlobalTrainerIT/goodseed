@@ -32,6 +32,7 @@ const Board = lazy(() => import('@/pages/Board'))
 const Toolkit = lazy(() => import('@/pages/Toolkit'))
 const Display = lazy(() => import('@/pages/Display'))
 const Admin = lazy(() => import('@/pages/Admin'))
+const OrgAdmin = lazy(() => import('@/pages/OrgAdmin'))
 
 function RequireAuth({ children }) {
   const user = useCurrentUser()
@@ -127,6 +128,7 @@ export default function App() {
           <Route path="/Welcome" element={<Page label="Welcome">{user ? <Navigate to="/Dashboard" replace /> : <Welcome />}</Page>} />
           <Route path="/Onboarding" element={<Page label="Onboarding"><Onboarding /></Page>} />
           <Route path="/Admin" element={<Page label="Admin"><Admin /></Page>} />
+          <Route path="/OrgAdmin" element={<Page label="OrgAdmin"><OrgAdmin /></Page>} />
           <Route path="/Display" element={<Page label="Display"><RequireAuth><Display /></RequireAuth></Page>} />
 
           <Route

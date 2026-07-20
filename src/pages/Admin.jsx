@@ -159,7 +159,7 @@ export default function Admin() {
               try {
                 const r = await adminCall(key, { action: 'create_org', name, days, group_cap: cap || null })
                 await refresh()
-                return r.code
+                return { code: r.code, adminKey: r.admin_key }
               } catch (e) {
                 setError(String(e.message || e)); setBusy(false); return null
               }
@@ -224,8 +224,8 @@ function OrgTable({ orgs, onCreate, onRevoke }) {
 
   async function create() {
     if (!name.trim()) return
-    const code = await onCreate(name.trim(), parseInt(days, 10) || 365, cap ? parseInt(cap, 10) : null)
-    if (code) { setNewCode({ code, name: name.trim() }); setName(''); setCap('') }
+    const res = await onCreate(name.trim(), parseInt(days, 10) || 365, cap ? parseInt(cap, 10) : null)
+    if (res) { setNewCode({ ...res, name: name.trim() }); setName(''); setCap('') }
   }
 
   return (
@@ -247,15 +247,20 @@ function OrgTable({ orgs, onCreate, onRevoke }) {
           <Button onClick={create} disabled={!name.trim()}><Plus className="h-4 w-4" /> Create org</Button>
         </div>
         {newCode && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-seed-500 bg-seed-50 p-3 dark:bg-seed-900/30">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-seed-700 dark:text-seed-400">{newCode.name}'s code</p>
-              <p className="font-mono text-2xl font-black tracking-widest text-seed-800 dark:text-seed-200">{newCode.code}</p>
+          <div className="mt-3 space-y-2 rounded-xl border-2 border-seed-500 bg-seed-50 p-3 dark:bg-seed-900/30">
+            <p className="text-xs font-bold uppercase tracking-wide text-seed-700 dark:text-seed-400">{newCode.name} — save both</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-500">Leader join code:</span>
+              <button onClick={() => { navigator.clipboard?.writeText(newCode.code); toast({ title: 'Join code copied', emoji: '📋' }) }}
+                className="rounded bg-white px-2 py-1 font-mono text-sm font-bold tracking-widest text-seed-800 hover:bg-gray-50 dark:bg-gray-800 dark:text-seed-200">{newCode.code}</button>
+              <span className="text-xs text-gray-400">→ hand to every leader</span>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(newCode.code); toast({ title: 'Code copied', message: 'Send it to their administrator.', emoji: '📋' }) }}>
-              Copy
-            </Button>
-            <p className="text-xs text-gray-500">Their leaders enter this in Settings — every group they run is covered, free to them.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-500">Admin key:</span>
+              <button onClick={() => { navigator.clipboard?.writeText(newCode.adminKey); toast({ title: 'Admin key copied', emoji: '🔑' }) }}
+                className="rounded bg-white px-2 py-1 font-mono text-sm font-bold tracking-wider text-purple-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-purple-300">{newCode.adminKey}</button>
+              <span className="text-xs text-gray-400">→ ONLY the administrator (dashboard at /OrgAdmin)</span>
+            </div>
           </div>
         )}
       </Card>

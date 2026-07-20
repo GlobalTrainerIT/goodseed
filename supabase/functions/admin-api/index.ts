@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       const [famRes, userRes, subRes, memberRes, waitRes] = await Promise.all([
         supabase.from('records').select('family_id, data, updated_at').eq('collection', 'families'),
         supabase.from('records').select('family_id, data').eq('collection', 'users'),
-        supabase.from('subscriptions').select('family_id, plan, status, current_period_end, comped, note, stripe_subscription_id'),
+        supabase.from('subscriptions').select('family_id, plan, status, current_period_end, comped, note, stripe_subscription_id, org_id'),
         supabase.from('family_members').select('family_id'),
         supabase.from('waitlist').select('created_at, role').order('created_at', { ascending: false }),
       ])
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
           kind: d.kind === 'group' ? 'group' : 'family',
           group_type: d.group_type || null,
           plan: d.plan || 'free',
-          created_at: d.created_at || null,
+          created_at: d.created_date || d.created_at || null,
           kids: kidCount[f.family_id] || 0,
           leaders: leaderCount[f.family_id] || 0,
           devices: deviceCount[f.family_id] || 0,
@@ -132,20 +132,21 @@ Deno.serve(async (req) => {
       const name = String(body.name || '').trim()
       const days = Math.min(1095, Math.max(1, Number(body.days) || 365))
       if (!name) return json({ error: 'name required' }, 400)
-      // Unambiguous characters only — this gets read off a phone or a slide.
+      // Unambiguous characters only — the join code gets read off a phone/slide.
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-      let suffix = ''
-      for (let i = 0; i < 5; i++) suffix += chars[Math.floor(Math.random() * chars.length)]
-      const code = `ORG-${suffix}`
+      const rand = (n: number) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+      const code = `ORG-${rand(5)}`          // leaders enter this to self-cover
+      const adminKey = `OADM-${rand(8)}`      // ONLY the administrator gets this
       const { error } = await supabase.from('organizations').insert({
         name,
         code,
+        admin_key: adminKey,
         active_until: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
         group_cap: body.group_cap ? Number(body.group_cap) : null,
         note: String(body.note || ''),
       })
       if (error) return json({ error: error.message }, 500)
-      return json({ ok: true, code })
+      return json({ ok: true, code, admin_key: adminKey })
     }
 
     // ---- end an org's coverage: revoke it AND drop the groups it covered
