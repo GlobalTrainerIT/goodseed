@@ -7,6 +7,7 @@ import { BADGE_DEFS } from './badges'
 import { LEVEL_THRESHOLDS } from './constants'
 import { levelRank, crossedRank } from './faith'
 import { getVerseForWeek, weekKey, weekKeyOffset } from './verses'
+import { ARMOR, ARMOR_SIZE, armorSuitBonus } from './armor'
 import { toast } from './toast'
 import { clamp } from './utils'
 
@@ -202,6 +203,148 @@ export function unmarkVerseMemorized(childId, date = new Date()) {
   return true
 }
 
+// ---------------------------------------------------------------- armor of God
+// A daily devotion habit shaped as a collectible: a child puts on one piece of
+// the Armor of God (Ephesians 6) per day. A kid can self-mark ("I read today's
+// verse"), which a parent confirms; a parent can also mark it complete directly.
+// Each confirmed day advances the child to the next piece; collecting all seven
+// completes a full suit, awarding a bonus and starting a fresh suit. Records live
+// in the `armorPieces` collection, at most one per local day.
+
+export function armorEnabled() {
+  return getSettings().armorEnabled !== false
+}
+
+/** Seeds granted per confirmed armor piece (configurable in Settings). */
+export function armorPieceReward() {
+  const r = getSettings().armorPieceReward
+  return Number.isFinite(r) ? r : 2
+}
+
+function armorRecords(childId) {
+  return getAll('armorPieces').filter((a) => a.child_id === childId)
+}
+
+function confirmedArmor(childId) {
+  return armorRecords(childId).filter((a) => a.status === 'confirmed')
+}
+
+/** Where a child is in the armor: pieces collected, current suit, next piece. */
+export function armorProgress(childId) {
+  const confirmed = confirmedArmor(childId).length
+  const suitsCompleted = Math.floor(confirmed / ARMOR_SIZE)
+  const inSuit = confirmed % ARMOR_SIZE // pieces earned toward the current suit
+  return { confirmed, suitsCompleted, inSuit, nextPieceIndex: inSuit, size: ARMOR_SIZE }
+}
+
+/** Today's armor record for a child (pending or confirmed), or null. */
+export function armorTodayRecord(childId, date = new Date()) {
+  const dk = localDayKey(date.toISOString())
+  return armorRecords(childId).find((a) => a.day_key === dk) || null
+}
+
+/** Consecutive days (ending today or yesterday) with a confirmed armor piece. */
+export function armorStreakDays(childId, date = new Date()) {
+  const days = new Set(confirmedArmor(childId).map((a) => a.day_key))
+  const cursor = new Date(date)
+  if (!days.has(localDayKey(cursor.toISOString()))) cursor.setDate(cursor.getDate() - 1)
+  let n = 0
+  while (days.has(localDayKey(cursor.toISOString()))) {
+    n += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return n
+}
+
+/** Kid self-marks today's armor. Creates a pending record for a parent to confirm. */
+export function kidMarkArmor(childId, date = new Date()) {
+  const child = getById('users', childId)
+  if (!child || armorTodayRecord(childId, date)) return null
+  const { nextPieceIndex } = armorProgress(childId)
+  const rec = create('armorPieces', {
+    child_id: childId,
+    family_id: child.family_id,
+    day_key: localDayKey(date.toISOString()),
+    piece_index: nextPieceIndex,
+    status: 'pending',
+    seeds_awarded: 0,
+    marked_by: childId,
+  })
+  getAll('users')
+    .filter((u) => u.family_id === child.family_id && u.role === 'parent')
+    .forEach((p) => notify(p.id, 'family', 'Armor of God ✅', `${child.full_name} put on the ${ARMOR[nextPieceIndex].label} — confirm it?`, '/Dashboard'))
+  return rec
+}
+
+/**
+ * Parent confirms today's armor (or marks it complete directly). Awards the
+ * piece's seeds, grows the daily streak, and — if this was the seventh piece —
+ * awards the full-suit bonus and a badge. Idempotent once confirmed for the day.
+ */
+export function confirmArmor(childId, byUserId = null, date = new Date()) {
+  const child = getById('users', childId)
+  if (!child) return null
+  let rec = armorTodayRecord(childId, date)
+  if (rec && rec.status === 'confirmed') return null // already done today
+  const reward = armorPieceReward()
+  if (!rec) {
+    const { nextPieceIndex } = armorProgress(childId)
+    rec = create('armorPieces', {
+      child_id: childId,
+      family_id: child.family_id,
+      day_key: localDayKey(date.toISOString()),
+      piece_index: nextPieceIndex,
+      status: 'confirmed',
+      seeds_awarded: reward,
+      confirmed_by: byUserId,
+      marked_by: byUserId,
+    })
+  } else {
+    update('armorPieces', rec.id, { status: 'confirmed', seeds_awarded: reward, confirmed_by: byUserId })
+  }
+
+  const streak = armorStreakDays(childId, date)
+  if (streak > (child.armor_streak_best || 0)) {
+    update('users', childId, { armor_streak_best: streak })
+  }
+
+  const piece = ARMOR[rec.piece_index] || ARMOR[0]
+  addActivity(child.family_id, childId, 'armor_piece', `${child.full_name} put on the ${piece.label} ${piece.emoji}`, 0)
+  if (reward > 0) awardSeeds(childId, reward, piece.label)
+  else checkBadges(childId)
+
+  // Did confirming this piece complete a full suit (a multiple of seven)?
+  const after = armorProgress(childId)
+  let fullArmor = false
+  if (after.confirmed > 0 && after.inSuit === 0) {
+    fullArmor = true
+    const suitNo = after.suitsCompleted // 1-based count of completed suits
+    const bonus = armorSuitBonus(suitNo)
+    addActivity(child.family_id, childId, 'armor_full', `${child.full_name} put on the FULL Armor of God! ⚔️🛡️ (suit #${suitNo})`, 0)
+    if (bonus > 0) awardSeeds(childId, bonus, 'Full Armor of God bonus')
+    notify(childId, 'family', 'Full Armor of God! ⚔️🛡️', `You put on the whole armor of God — +${bonus} bonus!`, null)
+    toast({ title: '⚔️ Full Armor of God!', message: `${child.full_name} suited up completely! +${bonus}`, emoji: '🛡️' })
+  }
+  return { streak, piece, fullArmor }
+}
+
+/**
+ * Remove today's armor mark. Safe to call for a pending mark (kid changed their
+ * mind) or to undo a confirm; claws back the piece's seeds (floored at zero).
+ * A full-suit bonus and any earned badge are sticky and not reversed.
+ */
+export function undoArmorToday(childId, date = new Date()) {
+  const rec = armorTodayRecord(childId, date)
+  if (!rec) return false
+  remove('armorPieces', rec.id)
+  if (rec.seeds_awarded > 0) {
+    const bal = getById('users', childId)?.seed_balance || 0
+    const dock = Math.min(rec.seeds_awarded, bal)
+    if (dock > 0) deductSeeds(childId, dock, 'Undo armor')
+  }
+  return true
+}
+
 // ---------------------------------------------------------------- streaks
 function localDayKey(iso) {
   const d = new Date(iso)
@@ -250,6 +393,7 @@ function childBadgeContext(childId) {
   })
   const shoutoutsGiven = getAll('shoutouts').filter((s) => s.from_user_id === childId).length
   const memoryVersesCount = getAll('memoryVerses').filter((m) => m.child_id === childId).length
+  const armorConfirmed = getAll('armorPieces').filter((a) => a.child_id === childId && a.status === 'confirmed').length
   return {
     tasksCompleted: approved.length,
     totalSeedsEarned: child?.total_seeds_earned || 0,
@@ -259,6 +403,9 @@ function childBadgeContext(childId) {
     shoutoutsGiven,
     memoryVersesCount,
     memoryStreakBest: child?.memory_streak_best || 0,
+    armorPiecesCount: armorConfirmed,
+    armorSuitsCompleted: Math.floor(armorConfirmed / ARMOR_SIZE),
+    armorStreakBest: child?.armor_streak_best || 0,
   }
 }
 

@@ -4,7 +4,7 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress } from '@/lib/domain'
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
@@ -171,6 +171,7 @@ function FamilyBoard({ user, family }) {
   const tasks = useCollection('tasks', (all) => all.filter((t) => t.family_id === user?.family_id && t.status === 'active'))
   useCollection('completions') // subscribe so "tasks left" recomputes on approval
   useCollection('memoryVerses') // subscribe so the memorized pill updates live
+  useCollection('armorPieces') // subscribe so the armor pill updates live
   useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
   const flash = usePointFlash(kids)
@@ -209,6 +210,7 @@ function FamilyBoard({ user, family }) {
               const left = tasksLeft(kid.id)
               const bump = flash[kid.id]
               const roll = computeRollup(kid) // rank reflects home + school + sports
+              const armor = armorProgress(kid.id)
               return (
                 <div key={kid.id} className={`flex flex-col items-center gap-3 rounded-3xl bg-white/15 px-6 py-6 text-center backdrop-blur transition-all duration-500 ${bump ? 'scale-[1.03] ring-4 ring-amber-300' : ''}`}>
                   <Avatar user={kid} size="xl" ring />
@@ -221,6 +223,7 @@ function FamilyBoard({ user, family }) {
                   <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
                     {(kid.streak_current || 0) > 0 && <span className="rounded-full bg-white/15 px-3 py-1">🔥 {kid.streak_current} day{kid.streak_current === 1 ? '' : 's'}</span>}
                     {verseMemorizedThisWeek(kid.id) && <span className="rounded-full bg-white/15 px-3 py-1">📖 Verse ✓</span>}
+                    {(armor.inSuit > 0 || armor.suitsCompleted > 0) && <span className="rounded-full bg-white/15 px-3 py-1">🛡️ Armor {armor.inSuit}/{armor.size}</span>}
                     <span className="rounded-full bg-white/15 px-3 py-1">{roll.rank.emoji} {roll.rank.name}</span>
                     {roll.hasGroups && <span className="rounded-full bg-white/15 px-3 py-1">🌍 {roll.grandTotal} total</span>}
                     <span className="rounded-full bg-white/15 px-3 py-1">{left > 0 ? `📋 ${left} to do` : '✅ All done!'}</span>

@@ -307,6 +307,8 @@ export function seedData() {
     enableSeedPacks: true,
     memoryVerseEnabled: true,
     memoryVerseReward: 5,
+    armorEnabled: true,
+    armorPieceReward: 2,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -334,6 +336,7 @@ export function seedData() {
     missions,
     leaderboardSnapshots,
     memoryVerses: [],
+    armorPieces: [],
     settings,
   }
 }

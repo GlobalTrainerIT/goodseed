@@ -6,6 +6,7 @@ import LevelProgress from '@/components/gamification/LevelProgress'
 import ChildTaskCard from './ChildTaskCard'
 import EmptyState from '@/components/shared/EmptyState'
 import SeedPackReveal from '@/components/gamification/SeedPackReveal'
+import ArmorOfGod from '@/components/shared/ArmorOfGod'
 import { levelRank } from '@/lib/faith'
 import { useCollection } from '@/lib/hooks'
 import { taskAppliesTo, seedLabel } from '@/lib/domain'
@@ -62,6 +63,8 @@ export default function ChildHome({ child }) {
         <p className="text-sm italic text-gray-700 dark:text-gray-200">"{verse.verse_text}"</p>
         <p className="mt-1 text-xs font-semibold text-seed-700 dark:text-seed-300">{verse.reference}</p>
       </Card>
+
+      <ArmorOfGod familyId={child.family_id} />
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">

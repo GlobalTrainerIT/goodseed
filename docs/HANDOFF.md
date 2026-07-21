@@ -50,6 +50,19 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   `VerseChallenge` card on coach Roster + family Dashboard; weekly verse + 📖
   memorized marks on both Display boards. Settings: enable + reward amount.
   Logic in `domain.js` (`markVerseMemorized`/`unmarkVerseMemorized`/streak).
+- **Armor of God** (daily devotion, family-only): 7-piece collectible set
+  (Ephesians 6, `src/lib/armor.js`). Kid self-checks "put on today's armor" →
+  pending; parent confirms (or marks directly). Each confirmed day = next piece
+  + seeds; all 7 = a full suit → escalating bonus + badge, then a new suit at a
+  higher tier (Bronze→Silver→Gold→Champion). Daily streak. 3 badges (Armor
+  Bearer, Fully Armored, Daily Devotion 7-day). `armorPieces` collection (syncs).
+  Role-aware `ArmorOfGod` card: child self-view in ChildHome, parent
+  confirm-panel on Dashboard; 🛡️ pill on the kitchen board. Settings: enable +
+  per-piece reward. Logic in `domain.js` (`kidMarkArmor`/`confirmArmor`/…).
+- **checkBadges re-entrancy fix**: a badge's `bonusSeeds` award re-enters
+  checkBadges; the outer loop's stale `owned` set could double-create a later
+  badge (exposed when Verse/Armor bonus badges fire together). Now guarded with a
+  live-store existence check before create.
 - **Compliance/pages**: /privacy (COPPA section), /terms, /parent-promise,
   /for-teams sales page. Internal docs in `docs/`.
 
@@ -59,6 +72,20 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    schedule (pick the week's verse instead of auto-rotation); let kids
    self-report memorized (parent/coach confirms); a "verses memorized" stat on
    ChildProfile/Reports; badge for a longer streak.
+1b. ✅ **Armor of God daily challenge** — BUILT (see Major systems). User
+   greenlit the whole faith-gamification direction ("I like all these ideas").
+   Backlog of the ideas they liked, in fit order:
+   - **Fruit of the Spirit garden** (strongest next — reuses most): faith.js
+     already has the 9 Fruits as behaviors + a growing-tree rank arc (Psalm 1:3).
+     Make it visual — each Fruit behavior earned grows that fruit on the child's
+     tree; collect all 9 → flourishing tree + badge.
+   - **Prayer / gratitude streak**: daily "who did you pray for / what are you
+     thankful for" tap; builds a gratitude jar on the kitchen board. Pairs with
+     Armor's day-7 Prayer piece.
+   - **Bible journey map**: milestone path (Creation→Noah→Moses→David→Jesus) that
+     unlocks as kids accumulate seeds or memorize verses. Long-horizon goal.
+   - **Family altar (co-op)**: a weekly devotional the whole family completes
+     together — reuse the existing Weekly Boss co-op mechanic.
 2. **Skylight-Calendar-style expansion** (user idea). Skylight = wall/counter
    touchscreen family organizer: shared calendar, chores, meal plan, to-dos,
    photos. GoodSeed already has the kitchen board. Best crossover, and it's ON

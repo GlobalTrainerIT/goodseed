@@ -30,6 +30,7 @@ export const COLLECTIONS = [
   'missions',
   'leaderboardSnapshots',
   'memoryVerses',
+  'armorPieces',
 ]
 
 const state = {}

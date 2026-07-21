@@ -358,6 +358,21 @@ export default function Settings() {
                   />
                 </Row>
               )}
+              <Row title="Armor of God" desc="Daily devotion challenge: kids put on a piece of armor each day; you confirm it.">
+                <Toggle checked={settings.armorEnabled !== false} onChange={(v) => updateSettings({ armorEnabled: v })} />
+              </Row>
+              {settings.armorEnabled !== false && (
+                <Row title="Armor piece reward" desc="Points awarded for each daily armor piece you confirm.">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="w-24"
+                    value={settings.armorPieceReward ?? 2}
+                    onChange={(e) => updateSettings({ armorPieceReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
+                  />
+                </Row>
+              )}
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

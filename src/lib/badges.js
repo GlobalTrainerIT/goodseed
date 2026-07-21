@@ -160,6 +160,32 @@ export const BADGE_DEFS = [
     check: (c) => (c.memoryVersesCount || 0) >= 12,
     bonusSeeds: 25,
   },
+
+  // ---- Armor of God (daily devotion habit) --------------------------------
+  {
+    badge_type: 'armor_bearer',
+    title: 'Armor Bearer',
+    description: 'Put on your first piece of armor — "Put on the full armor of God." (Ephesians 6:11)',
+    icon_emoji: '🛡️',
+    check: (c) => (c.armorPiecesCount || 0) >= 1,
+    bonusSeeds: 3,
+  },
+  {
+    badge_type: 'armor_full',
+    title: 'Fully Armored',
+    description: 'Put on the full Armor of God — "so that you can take your stand." (Ephesians 6:13)',
+    icon_emoji: '⚔️',
+    check: (c) => (c.armorSuitsCompleted || 0) >= 1,
+    bonusSeeds: 10,
+  },
+  {
+    badge_type: 'armor_daily_7',
+    title: 'Daily Devotion',
+    description: 'Put on the armor 7 days running — "Stand firm then." (Ephesians 6:14)',
+    icon_emoji: '🔥',
+    check: (c) => (c.armorStreakBest || 0) >= 7,
+    bonusSeeds: 10,
+  },
 ]
 
 export function getBadgeDef(type) {
