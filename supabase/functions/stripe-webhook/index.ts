@@ -1,25 +1,38 @@
-// Stripe webhook → makes a family's plan server-authoritative.
-// Verifies the Stripe signature, then upserts the subscriptions table using the
-// service role (which bypasses RLS), so clients can never grant themselves Plus.
+// Stripe webhook → makes a family's plan AND an organization's coverage
+// server-authoritative. Verifies the Stripe signature, then writes with the
+// service role (bypassing RLS), so clients can never grant themselves access.
 //
-// Handles the full lifecycle:
+// FAMILY / GROUP subscriptions (metadata.family_id) → `subscriptions` table:
 //   checkout.session.completed         → plan from price (plus/teams), status=active
 //   customer.subscription.updated      → mirror status (plan while active/trialing)
 //   customer.subscription.deleted      → plan=free, status=canceled
 //   invoice.paid                       → refresh status + renewal date
 //   invoice.payment_failed             → status=past_due (app re-gates the plan)
 //
-// Note: on newer Stripe API versions `current_period_end` lives on the
-// subscription ITEM, not the subscription — we read both.
+// ORGANIZATION subscriptions (metadata.org_id) → `organizations` table:
+//   invoice.paid / subscription active  → active_until = paid-through date, so a
+//       school's coverage extends itself with each ACH charge (zero-touch).
+//   payment_failed / canceled / deleted → status recorded, active_until is NOT
+//       extended, so coverage runs out the period they already paid for and then
+//       lapses. We never cut a school off mid-period.
 //
-// Required secrets (Supabase dashboard → Edge Functions → Secrets):
-//   STRIPE_SECRET_KEY      — Stripe secret key
-//   STRIPE_WEBHOOK_SECRET  — the signing secret for this webhook endpoint (whsec_…)
-// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided automatically.
+// MODE AWARENESS: org billing is trialled with a TEST key while Plus/Teams runs
+// LIVE. Test events are signed by the test endpoint's secret and their objects
+// only exist under the test key, so we verify against either secret and pick the
+// matching Stripe client via event.livemode.
+//
+// Secrets (Supabase dashboard → Edge Functions → Secrets):
+//   STRIPE_SECRET_KEY           — live secret key
+//   STRIPE_WEBHOOK_SECRET       — signing secret for the LIVE endpoint (whsec_…)
+//   STRIPE_INVOICE_SECRET_KEY   — test secret key (org billing)
+//   STRIPE_WEBHOOK_SECRET_TEST  — signing secret for the TEST endpoint (optional)
 import Stripe from 'npm:stripe@14'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', { apiVersion: '2024-06-20' })
+const liveKey = Deno.env.get('STRIPE_SECRET_KEY') ?? ''
+const testKey = Deno.env.get('STRIPE_INVOICE_SECRET_KEY') ?? ''
+const stripeLive = new Stripe(liveKey, { apiVersion: '2024-06-20' })
+const stripeTest = testKey ? new Stripe(testKey, { apiVersion: '2024-06-20' }) : null
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -65,7 +78,46 @@ async function setPlan(familyId: string, plan: string, status: string, sub: any)
   })
 }
 
+/**
+ * Organization subscription → extend coverage. Returns true when the event
+ * belongs to an org (so the family path is skipped entirely).
+ */
+async function applyOrgSubscription(sub: any): Promise<boolean> {
+  const orgId = sub?.metadata?.org_id
+  if (!orgId) return false
+
+  const { data: org } = await supabase
+    .from('organizations').select('billing, active_until').eq('id', orgId).maybeSingle()
+  if (!org) return true // it IS an org event; nothing to write
+
+  const active = isActiveStatus(sub?.status)
+  const paidThrough = periodEnd(sub)
+  const patch: Record<string, unknown> = {
+    billing: {
+      ...(org.billing || {}),
+      subscription_id: sub?.id ?? null,
+      subscription_status: sub?.status ?? 'unknown',
+      subscription_seats: Number(sub?.metadata?.seats) || null,
+      subscription_period: sub?.metadata?.period ?? null,
+      paid_through: paidThrough,
+      updated_at: new Date().toISOString(),
+    },
+  }
+  const cust = typeof sub?.customer === 'string' ? sub.customer : sub?.customer?.id
+  if (cust) patch.stripe_customer_id = cust
+
+  // Only ever EXTEND coverage — never shorten it. A failed payment or a
+  // cancellation leaves the school with the period they already paid for.
+  if (active && paidThrough && (!org.active_until || new Date(paidThrough) > new Date(org.active_until))) {
+    patch.active_until = paidThrough
+  }
+  await supabase.from('organizations').update(patch).eq('id', orgId)
+  return true
+}
+
 async function applySubscription(sub: any, fallbackFamilyId?: string) {
+  // Organizations first — their subscriptions carry org_id, not family_id.
+  if (await applyOrgSubscription(sub)) return
   const familyId = sub?.metadata?.family_id || fallbackFamilyId
   if (!familyId) return
   const active = isActiveStatus(sub?.status)
@@ -75,24 +127,30 @@ async function applySubscription(sub: any, fallbackFamilyId?: string) {
 Deno.serve(async (req) => {
   const sig = req.headers.get('stripe-signature')
   const body = await req.text()
-  let event: Stripe.Event
-  try {
-    event = await stripe.webhooks.constructEventAsync(
-      body,
-      sig ?? '',
-      Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? ''
-    )
-  } catch (e) {
-    return new Response(`Webhook Error: ${String(e?.message ?? e)}`, { status: 400 })
+
+  // Verify against the live secret, then the test secret. Signature checking is
+  // pure HMAC, so the client instance used here doesn't matter.
+  let event: Stripe.Event | null = null
+  for (const secret of [Deno.env.get('STRIPE_WEBHOOK_SECRET'), Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST')]) {
+    if (!secret) continue
+    try {
+      event = await stripeLive.webhooks.constructEventAsync(body, sig ?? '', secret)
+      break
+    } catch { /* try the next secret */ }
   }
+  if (!event) return new Response('Webhook Error: signature verification failed', { status: 400 })
+
+  // Objects from a test event only exist under the test key, and vice versa.
+  const api = event.livemode ? stripeLive : (stripeTest ?? stripeLive)
 
   try {
     const obj: any = event.data.object
     switch (event.type) {
       case 'checkout.session.completed': {
         const familyId = obj.client_reference_id || obj.metadata?.family_id
-        if (familyId && obj.subscription) {
-          const sub = await stripe.subscriptions.retrieve(obj.subscription)
+        if (obj.subscription) {
+          const sub = await api.subscriptions.retrieve(obj.subscription)
+          // An org checkout carries org_id in metadata; applySubscription routes it.
           await applySubscription(sub, familyId)
         } else if (familyId) {
           await setPlan(familyId, obj.metadata?.plan?.startsWith('teams') ? 'teams' : 'plus', 'active', null)
@@ -112,7 +170,7 @@ Deno.serve(async (req) => {
           obj.parent?.subscription_details?.subscription ||
           obj.lines?.data?.[0]?.subscription
         if (subId) {
-          const sub = await stripe.subscriptions.retrieve(
+          const sub = await api.subscriptions.retrieve(
             typeof subId === 'string' ? subId : subId.id
           )
           await applySubscription(sub)
