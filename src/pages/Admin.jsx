@@ -398,8 +398,12 @@ function BillOrgDialog({ org, onInvoice, onClose }) {
     >
       {result ? (
         <div className="space-y-3">
-          <p className="rounded-lg bg-seed-50 p-3 text-sm text-seed-800 dark:bg-seed-900/30 dark:text-seed-200">
-            ✅ Invoice created ({result.status}) for <b>${(result.amount / 100).toFixed(2)}</b>.
+          <p className={`rounded-lg p-3 text-sm ${result.mismatch ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-seed-50 text-seed-800 dark:bg-seed-900/30 dark:text-seed-200'}`}>
+            {result.mismatch ? (
+              <>⚠️ Stripe billed <b>${((result.amount_due ?? 0) / 100).toFixed(2)}</b> but this should be <b>${(result.amount / 100).toFixed(2)}</b> — don't send this one.</>
+            ) : (
+              <>✅ Invoice created ({result.status}) for <b>${((result.amount_due ?? result.amount) / 100).toFixed(2)}</b>.</>
+            )}
           </p>
           {result.hosted_invoice_url && (
             <a href={result.hosted_invoice_url} target="_blank" rel="noreferrer" className="block rounded-lg border border-gray-200 p-3 text-sm font-semibold text-seed-700 hover:bg-gray-50 dark:border-gray-800 dark:text-seed-400">

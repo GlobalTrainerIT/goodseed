@@ -82,22 +82,28 @@ Deno.serve(async (req) => {
       customerId = customer.id
     }
 
-    // One line item: N children × the per-child rate for the chosen period.
-    await stripe.invoiceItems.create({
-      customer: customerId,
-      currency: 'usd',
-      unit_amount: unit,
-      quantity: children,
-      description: `GoodSeed Organization — ${children} × $${(unit / 100).toFixed(2)}/child/${periodLabel} (${org.name})`,
-    })
-
+    // Create the DRAFT invoice first, then attach the line item to it by id.
+    // Modern Stripe API versions do NOT sweep pending invoice items into a new
+    // invoice (pending_invoice_items_behavior defaults to 'exclude'), so the
+    // old create-item-then-invoice order silently produced $0.00 invoices.
     const invoice = await stripe.invoices.create({
       customer: customerId,
       collection_method: 'send_invoice',
       days_until_due: 30,
+      auto_advance: false,
       description: `GoodSeed for ${org.name} — ${children} children, billed per ${periodLabel}.`,
       payment_settings: { payment_method_types: ['us_bank_account', 'card'] }, // ACH + card fallback
       metadata: { org_id: orgId, children: String(children), period },
+    })
+
+    // One line item: N children × the per-child rate, explicitly on THIS invoice.
+    await stripe.invoiceItems.create({
+      customer: customerId,
+      invoice: invoice.id,
+      currency: 'usd',
+      unit_amount: unit,
+      quantity: children,
+      description: `GoodSeed Organization — ${children} × $${(unit / 100).toFixed(2)}/child/${periodLabel} (${org.name})`,
     })
 
     const finalized = await stripe.invoices.finalizeInvoice(invoice.id)
@@ -105,6 +111,9 @@ Deno.serve(async (req) => {
     // hosted, payable invoice). Non-fatal if sending is disabled in test mode.
     try { await stripe.invoices.sendInvoice(finalized.id) } catch { /* ignore */ }
 
+    // Report what Stripe ACTUALLY billed, not just what we computed — a
+    // mismatch (e.g. an unattached line item) must never pass silently.
+    const amountDue = finalized.amount_due ?? 0
     const billing = {
       last_invoice_id: finalized.id,
       last_invoice_url: finalized.hosted_invoice_url,
@@ -112,11 +121,19 @@ Deno.serve(async (req) => {
       children,
       period,
       amount,
+      amount_due: amountDue,
       at: new Date().toISOString(),
     }
     await supabase.from('organizations').update({ stripe_customer_id: customerId, contact_email: email, billing }).eq('id', orgId)
 
-    return json({ hosted_invoice_url: finalized.hosted_invoice_url, status: finalized.status, invoice_id: finalized.id, amount })
+    return json({
+      hosted_invoice_url: finalized.hosted_invoice_url,
+      status: finalized.status,
+      invoice_id: finalized.id,
+      amount,
+      amount_due: amountDue,
+      mismatch: amountDue !== amount, // surfaced in the console if Stripe disagrees
+    })
   } catch (e) {
     return json({ error: String((e as { message?: string })?.message ?? e) }, 500)
   }
