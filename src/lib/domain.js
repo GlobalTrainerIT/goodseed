@@ -662,6 +662,32 @@ export function removeNote(id) {
   remove('familyNotes', id)
 }
 
+// ---------------------------------------------------------- calendar events
+// Per-occurrence editing for recurring events: a weekly announcement carries an
+// `overrides` map keyed by the occurrence's ORIGINAL date. See events.js
+// `expandInRange` for how these are applied.
+
+/** Override one occurrence of a recurring event (by its original date). */
+export function overrideEventDay(id, originalDate, patch) {
+  const rec = getById('announcements', id)
+  if (!rec) return
+  const overrides = { ...(rec.overrides || {}), [originalDate]: { ...(rec.overrides?.[originalDate] || {}), ...patch } }
+  update('announcements', id, { overrides })
+}
+
+/**
+ * Move an event to a new date (drag-to-reschedule). A one-off event moves
+ * outright; one occurrence of a recurring event moves via a per-day override so
+ * the rest of the series stays put.
+ */
+export function moveEvent(id, originalDate, toDate) {
+  if (!toDate || originalDate === toDate) return
+  const rec = getById('announcements', id)
+  if (!rec) return
+  if (rec.repeat === 'weekly') overrideEventDay(id, originalDate, { event_date: toDate })
+  else update('announcements', id, { event_date: toDate })
+}
+
 function completeAltar(familyId, date = new Date()) {
   const reward = altarReward()
   const streak = altarStreakWeeks(familyId, date)

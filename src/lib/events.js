@@ -30,6 +30,7 @@ export function expandInRange(list, from, to) {
     if (!base) return
     if (a.repeat === 'weekly') {
       const skip = new Set(a.exceptions || []) // 'YYYY-MM-DD' dates removed from the series
+      const overrides = a.overrides || {} // { origDate: { title?, event_time?, message?, event_date? } }
       let d = base
       if (isBefore(d, fromD)) {
         const weeks = Math.ceil(differenceInCalendarDays(fromD, d) / 7)
@@ -37,7 +38,13 @@ export function expandInRange(list, from, to) {
       }
       while (!isAfter(d, toD)) {
         const key = format(d, 'yyyy-MM-dd')
-        if (!isBefore(d, fromD) && !skip.has(key)) out.push({ ...a, event_date: key, _occurrence: true })
+        if (!isBefore(d, fromD) && !skip.has(key)) {
+          const o = overrides[key]
+          // A single occurrence can be edited or moved (event_date) without
+          // touching the rest of the series. `_overrideKey` is the ORIGINAL
+          // date, so edits target the right override entry.
+          out.push({ ...a, ...(o || {}), event_date: (o && o.event_date) || key, repeat: 'weekly', _occurrence: true, _overrideKey: key })
+        }
         d = addDays(d, 7)
       }
     } else if (!isBefore(base, fromD) && !isAfter(base, toD)) {

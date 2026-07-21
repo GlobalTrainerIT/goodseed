@@ -9,6 +9,7 @@ import { Card, Button } from '@/components/ui'
 import AddEventDialog from '@/components/shared/AddEventDialog'
 import { useCurrentUser, useCollection } from '@/lib/hooks'
 import { getById } from '@/lib/db'
+import { mealText, moveEvent } from '@/lib/domain'
 import { useFollowedData } from '@/lib/groupLink'
 import { expandInRange, eventDate, todayValue } from '@/lib/events'
 
@@ -20,6 +21,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export default function Calendar() {
   const user = useCurrentUser()
   const announcements = useCollection('announcements', (all) => all.filter((a) => a.family_id === user?.family_id))
+  useCollection('meals') // dinners are surfaced in the day cells
   const { followed, snapshots } = useFollowedData()
   const [monthAnchor, setMonthAnchor] = useState(() => startOfMonth(new Date()))
   const [addFor, setAddFor] = useState(null) // 'YYYY-MM-DD' when adding on a day
@@ -81,12 +83,21 @@ export default function Calendar() {
           {days.map((day) => {
             const key = format(day, 'yyyy-MM-dd')
             const dayEvents = byDay[key] || []
+            const dinner = mealText(user.family_id, key, 'dinner')
             const inMonth = isSameMonth(day, monthAnchor)
             const today = isToday(day)
             return (
               <button
                 key={key}
                 onClick={() => canAdd && setAddFor(key)}
+                onDragOver={canAdd ? (ev) => ev.preventDefault() : undefined}
+                onDrop={canAdd ? (ev) => {
+                  ev.preventDefault()
+                  try {
+                    const { id, from } = JSON.parse(ev.dataTransfer.getData('text/plain'))
+                    if (id) moveEvent(id, from, key)
+                  } catch { /* ignore malformed drops */ }
+                } : undefined}
                 className={`min-h-[74px] rounded-lg border p-1.5 text-left align-top transition sm:min-h-[92px] ${
                   today ? 'border-seed-400 bg-seed-50/60 dark:border-seed-600 dark:bg-seed-900/20' : 'border-gray-100 dark:border-gray-800'
                 } ${inMonth ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/60 dark:bg-gray-900/40'} ${canAdd ? 'hover:border-seed-300' : 'cursor-default'}`}
@@ -99,7 +110,9 @@ export default function Calendar() {
                     <div
                       key={(e.id || e.title) + i}
                       onClick={(ev) => { ev.stopPropagation(); openEvent(e) }}
-                      title={`${e.event_time ? e.event_time + ' · ' : ''}${e.title}${e.group ? ` (${e.group})` : ''}${!e._external && canAdd ? ' — tap to edit' : ''}`}
+                      draggable={canAdd && !e._external}
+                      onDragStart={(ev) => { ev.stopPropagation(); ev.dataTransfer.setData('text/plain', JSON.stringify({ id: e.id, from: e._overrideKey || e.event_date })) }}
+                      title={`${e.event_time ? e.event_time + ' · ' : ''}${e.title}${e.group ? ` (${e.group})` : ''}${!e._external && canAdd ? ' — tap to edit, drag to move' : ''}`}
                       className={`truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight ${
                         e._external
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
@@ -110,6 +123,11 @@ export default function Calendar() {
                     </div>
                   ))}
                   {dayEvents.length > 3 && <div className="px-1 text-[10px] font-medium text-gray-400">+{dayEvents.length - 3} more</div>}
+                  {dinner && (
+                    <div title={`Dinner: ${dinner}`} className="truncate rounded px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                      🍽️ {dinner}
+                    </div>
+                  )}
                 </div>
               </button>
             )
