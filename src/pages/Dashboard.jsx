@@ -10,6 +10,7 @@ import FamilyAltar from '@/components/shared/FamilyAltar'
 import UpcomingEvents from '@/components/shared/UpcomingEvents'
 import MealPlan from '@/components/shared/MealPlan'
 import TodoLane from '@/components/shared/TodoLane'
+import PhotoLane from '@/components/shared/PhotoLane'
 import ShoutOutCard from '@/components/dashboard/ShoutOutCard'
 import LeaderboardCard from '@/components/dashboard/LeaderboardCard'
 import ChildHome from '@/components/child/ChildHome'
@@ -79,6 +80,10 @@ export default function Dashboard() {
 
       <div className="mt-5">
         <MealPlan familyId={user.family_id} canEdit />
+      </div>
+
+      <div className="mt-5">
+        <PhotoLane />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">

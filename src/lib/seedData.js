@@ -322,6 +322,7 @@ export function seedData() {
     altarReward: 5,
     mealsEnabled: true,
     todosEnabled: true,
+    photosEnabled: true,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,

@@ -6,6 +6,7 @@ import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
 import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks, mealText, familyTodos } from '@/lib/domain'
 import { todayKey } from '@/lib/meals'
+import FamilyPhotoFrame from '@/components/shared/FamilyPhotoFrame'
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
@@ -280,6 +281,8 @@ function FamilyBoard({ user, family }) {
             </div>
           </div>
         )}
+
+        <FamilyPhotoFrame />
 
         {agenda.length > 0 && (
           <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
