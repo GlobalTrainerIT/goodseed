@@ -48,8 +48,28 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   DEDICATED key, never the live checkout key, so testing can't touch live
   Plus/Teams; swap to sk_live_… to go live. (2) Enable **ACH Direct Debit** in
   the Stripe dashboard (Settings → Payment methods) so the hosted invoice offers
-  bank payment. Deployed + auth-gate verified (401 on bad key); the Stripe path
-  is verifiable once the test key is set.
+  bank payment. VERIFIED end-to-end in test mode: a real $8,000 ACH-payable
+  invoice (400 × $20) rendered with "US bank account" offered.
+- **Org AUTO-billing (ACH subscriptions)** — the preferred path. `org-invoice`
+  also has: `setup_prices` (one-time; creates the $2/child/mo + $20/child/yr
+  recurring prices, ids stored in `admin_config.org_price_monthly/annual`),
+  `set_seats` (contracted `organizations.student_seats`), and
+  `create_subscription_link` (Stripe Checkout, subscription mode,
+  us_bank_account + card → the org authorizes an ACH mandate ONCE and Stripe
+  auto-debits every period; quantity = contracted seats). Owner Console has a
+  "Set up billing prices" button, a **Seats** column (live kid count across the
+  org's covered groups vs contracted seats; amber at 90%, red "full" at 100% —
+  SOFT, never blocks), and a Billing dialog offering Auto-bill or One-off
+  invoice. Leaders are always free/unlimited.
+- **Webhook closes the loop**: `stripe-webhook` routes `metadata.org_id` events
+  to `organizations` — `invoice.paid`/active → `active_until` = paid-through
+  date (coverage renews itself); failed/canceled → status recorded but NOT
+  extended, so the school keeps the period it paid for then lapses. Coverage is
+  only ever extended, never shortened. The webhook is now MODE-AWARE (verifies
+  `STRIPE_WEBHOOK_SECRET` then `STRIPE_WEBHOOK_SECRET_TEST`, picks the Stripe
+  client from `event.livemode`) because org billing is on a test key while
+  Plus/Teams is live. **SETUP**: register the same webhook URL as an endpoint in
+  Stripe TEST mode and put its signing secret in `STRIPE_WEBHOOK_SECRET_TEST`.
 - **Billing**: Stripe live. create-checkout (plans: plus, teams_monthly
   price_1Ttg1ZC3XE1lnObG71CATYSX, teams_yearly price_1Ttp2ZC3XE1lnObGwWOxIN0e),
   stripe-webhook, create-portal. Old $99 price retired but still mapped.
