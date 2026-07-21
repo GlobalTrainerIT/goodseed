@@ -299,6 +299,11 @@ export function seedData() {
     },
   ]
 
+  const todos = [
+    { id: 'todo1', family_id: familyId, text: 'Pack lunches for tomorrow', done: false, assigned_to: null, created_by: 'parent1', created_date: daysAgo(0) },
+    { id: 'todo2', family_id: familyId, text: 'Water the plants 🌱', done: false, assigned_to: 'child1', created_by: 'parent1', created_date: daysAgo(0) },
+  ]
+
   const settings = {
     family_id: familyId,
     seedName: 'Seeds',
@@ -316,6 +321,7 @@ export function seedData() {
     altarEnabled: true,
     altarReward: 5,
     mealsEnabled: true,
+    todosEnabled: true,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -348,6 +354,7 @@ export function seedData() {
     gratitude: [],
     familyAltar: [],
     meals: [],
+    todos,
     settings,
   }
 }

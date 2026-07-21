@@ -346,6 +346,9 @@ export default function Settings() {
               <Row title="Weekly meal plan" desc="Plan the week's meals on the dashboard; tonight's dinner shows on the kitchen board.">
                 <Toggle checked={settings.mealsEnabled !== false} onChange={(v) => updateSettings({ mealsEnabled: v })} />
               </Row>
+              <Row title="Family to-do list" desc="A shared checklist on the dashboard and kitchen board (separate from seed-earning Tasks).">
+                <Toggle checked={settings.todosEnabled !== false} onChange={(v) => updateSettings({ todosEnabled: v })} />
+              </Row>
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

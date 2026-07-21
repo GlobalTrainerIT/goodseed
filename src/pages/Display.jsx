@@ -4,7 +4,7 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks, mealText } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks, mealText, familyTodos } from '@/lib/domain'
 import { todayKey } from '@/lib/meals'
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
@@ -193,6 +193,7 @@ function FamilyBoard({ user, family }) {
   useCollection('gratitude') // subscribe so the gratitude jar updates live
   useCollection('familyAltar') // subscribe so the altar line updates live
   useCollection('meals') // subscribe so tonight's dinner updates live
+  useCollection('todos') // subscribe so the to-do strip updates live
   const ownAnnouncements = useCollection('announcements', (all) => all.filter((a) => a.family_id === user?.family_id))
   const { followed, snapshots } = useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
@@ -206,6 +207,7 @@ function FamilyBoard({ user, family }) {
   const groupEvents = followed.flatMap((f) => (snapshots[f.code]?.announcements || []).map((a) => ({ ...a, group: snapshots[f.code]?.group_name || f.groupName })))
   const agenda = groupByDay(upcomingEvents([...ownAnnouncements, ...groupEvents], { days: 14 }))
   const tonightDinner = mealText(user?.family_id, todayKey(), 'dinner')
+  const openTodos = familyTodos(user?.family_id).filter((t) => !t.done).slice(0, 4)
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -296,6 +298,17 @@ function FamilyBoard({ user, family }) {
         {tonightDinner && (
           <div className="mt-6 rounded-2xl bg-white/10 px-6 py-3 text-center backdrop-blur">
             <p className="text-lg font-black sm:text-xl">🍽️ Tonight's dinner — {tonightDinner}</p>
+          </div>
+        )}
+
+        {openTodos.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+              <span className="text-lg font-black uppercase tracking-wide text-teal-200">📋 To-Do</span>
+              {openTodos.map((t) => (
+                <span key={t.id} className="text-lg font-semibold sm:text-xl">☐ {t.text}</span>
+              ))}
+            </div>
           </div>
         )}
 

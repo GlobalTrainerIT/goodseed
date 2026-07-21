@@ -35,6 +35,7 @@ export const COLLECTIONS = [
   'gratitude',
   'familyAltar',
   'meals',
+  'todos',
 ]
 
 const state = {}

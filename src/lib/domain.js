@@ -592,6 +592,50 @@ export function setMeal(familyId, date, type, text, byUserId = null) {
   else create('meals', { family_id: familyId, day_key: date, meal_type: type, text: t, created_by: byUserId })
 }
 
+// ---------------------------------------------------------------- to-do lane
+// A lightweight shared family checklist (distinct from `tasks`, which is the
+// seed-earning chore engine). Anyone in the family can add, check, and clear
+// items; no seeds, no approval. Records live in the `todos` collection.
+
+export function todosEnabled() {
+  return getSettings().todosEnabled !== false
+}
+
+/** Family to-dos, open items first then done, each oldest-first within. */
+export function familyTodos(familyId) {
+  return getAll('todos')
+    .filter((t) => t.family_id === familyId)
+    .sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || new Date(a.created_date) - new Date(b.created_date))
+}
+
+export function openTodoCount(familyId) {
+  return getAll('todos').filter((t) => t.family_id === familyId && !t.done).length
+}
+
+export function addTodo(familyId, text, assignedTo = null, byUserId = null) {
+  const t = String(text || '').trim().slice(0, 120)
+  if (!t) return null
+  return create('todos', { family_id: familyId, text: t, done: false, assigned_to: assignedTo || null, created_by: byUserId })
+}
+
+export function toggleTodo(id, byUserId = null) {
+  const t = getById('todos', id)
+  if (!t) return
+  const done = !t.done
+  update('todos', id, { done, done_by: done ? byUserId : null, done_date: done ? new Date().toISOString() : null })
+}
+
+export function removeTodo(id) {
+  remove('todos', id)
+}
+
+/** Remove all completed to-dos for a family. */
+export function clearDoneTodos(familyId) {
+  getAll('todos')
+    .filter((t) => t.family_id === familyId && t.done)
+    .forEach((t) => remove('todos', t.id))
+}
+
 function completeAltar(familyId, date = new Date()) {
   const reward = altarReward()
   const streak = altarStreakWeeks(familyId, date)

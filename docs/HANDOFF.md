@@ -109,6 +109,12 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   a "repeat weekly" box (family agenda + coach Board). New `/Calendar` page
   (`src/pages/Calendar.jsx`) — a month grid of family + followed-group events,
   parent-only, in PARENT_NAV; the Dashboard agenda links to it.
+- **Shared to-do lane**: a lightweight family checklist (`todos` collection),
+  distinct from `tasks` (the seed-earning chore engine) — no seeds/approval.
+  `TodoLane` card on the Dashboard + ChildHome (both parent and child can add,
+  check, assign to a member, and "Clear done" — shared family state); open items
+  show on the kitchen board. Settings: enable toggle. Logic in `domain.js`
+  (`addTodo`/`toggleTodo`/`removeTodo`/`clearDoneTodos`).
 - **Weekly meal plan** (Skylight lane): a per-week B/L/D planner (`src/lib/meals.js`
   + `meals` collection, keyed by concrete date). `MealPlan` card on the Dashboard
   (parents type into inline slots; blank clears the slot); read-only elsewhere;
@@ -152,8 +158,10 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    `group-link` edge fn source now returns `event_date`/`event_time`, but it must
    be deployed to Supabase (matching its current `verify_jwt=false`) for coach
    events to reach families cross-family — see the spawned task. Meal-plan lane
-   now BUILT (see Major systems). Follow-ons: a shared to-do / chore lane on the
-   command-center; month-view event click-to-edit; drag-to-reschedule.
+   now BUILT (see Major systems), and the shared to-do lane too — the family
+   command-center is now agenda + month calendar + meal plan + to-do list.
+   Follow-ons: month-view event click-to-edit; drag-to-reschedule; a family
+   photo/notes lane; surfacing meals/todos on the /Calendar page.
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,
