@@ -352,6 +352,9 @@ export default function Settings() {
               <Row title="Family photos" desc="A rotating photo frame on the kitchen board. Photos stay on this device only.">
                 <Toggle checked={settings.photosEnabled !== false} onChange={(v) => updateSettings({ photosEnabled: v })} />
               </Row>
+              <Row title="Family notes" desc="A shared sticky-note message board on the dashboard and kitchen board.">
+                <Toggle checked={settings.notesEnabled !== false} onChange={(v) => updateSettings({ notesEnabled: v })} />
+              </Row>
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

@@ -36,6 +36,7 @@ export const COLLECTIONS = [
   'familyAltar',
   'meals',
   'todos',
+  'familyNotes',
 ]
 
 const state = {}

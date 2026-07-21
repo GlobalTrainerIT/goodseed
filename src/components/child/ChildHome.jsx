@@ -12,6 +12,7 @@ import GratitudeJar from '@/components/shared/GratitudeJar'
 import BibleJourney from '@/components/shared/BibleJourney'
 import FamilyAltar from '@/components/shared/FamilyAltar'
 import TodoLane from '@/components/shared/TodoLane'
+import NotesLane from '@/components/shared/NotesLane'
 import { levelRank } from '@/lib/faith'
 import { useCollection } from '@/lib/hooks'
 import { taskAppliesTo, seedLabel } from '@/lib/domain'
@@ -80,6 +81,8 @@ export default function ChildHome({ child }) {
       <FamilyAltar familyId={child.family_id} />
 
       <TodoLane familyId={child.family_id} />
+
+      <NotesLane familyId={child.family_id} />
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">

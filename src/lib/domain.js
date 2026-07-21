@@ -636,6 +636,32 @@ export function clearDoneTodos(familyId) {
     .forEach((t) => remove('todos', t.id))
 }
 
+// -------------------------------------------------------------- family notes
+// A shared sticky-note message board (the classic kitchen fridge). Freeform
+// notes anyone in the family can post, distinct from dated events and checklist
+// to-dos. Records live in the `familyNotes` collection.
+
+export function notesEnabled() {
+  return getSettings().notesEnabled !== false
+}
+
+/** Family notes, newest first. */
+export function familyNotesList(familyId) {
+  return getAll('familyNotes')
+    .filter((n) => n.family_id === familyId)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+}
+
+export function addNote(familyId, text, color = 'yellow', byUserId = null) {
+  const t = String(text || '').trim().slice(0, 200)
+  if (!t) return null
+  return create('familyNotes', { family_id: familyId, text: t, color, created_by: byUserId, created_at: new Date().toISOString() })
+}
+
+export function removeNote(id) {
+  remove('familyNotes', id)
+}
+
 function completeAltar(familyId, date = new Date()) {
   const reward = altarReward()
   const streak = altarStreakWeeks(familyId, date)

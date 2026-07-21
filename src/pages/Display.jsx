@@ -4,7 +4,8 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks, mealText, familyTodos } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks, mealText, familyTodos, familyNotesList } from '@/lib/domain'
+import { noteCard } from '@/components/shared/NotesLane'
 import { todayKey } from '@/lib/meals'
 import FamilyPhotoFrame from '@/components/shared/FamilyPhotoFrame'
 import { getVerseForWeek } from '@/lib/verses'
@@ -195,6 +196,7 @@ function FamilyBoard({ user, family }) {
   useCollection('familyAltar') // subscribe so the altar line updates live
   useCollection('meals') // subscribe so tonight's dinner updates live
   useCollection('todos') // subscribe so the to-do strip updates live
+  useCollection('familyNotes') // subscribe so the notes strip updates live
   const ownAnnouncements = useCollection('announcements', (all) => all.filter((a) => a.family_id === user?.family_id))
   const { followed, snapshots } = useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
@@ -209,6 +211,7 @@ function FamilyBoard({ user, family }) {
   const agenda = groupByDay(upcomingEvents([...ownAnnouncements, ...groupEvents], { days: 14 }))
   const tonightDinner = mealText(user?.family_id, todayKey(), 'dinner')
   const openTodos = familyTodos(user?.family_id).filter((t) => !t.done).slice(0, 4)
+  const notes = familyNotesList(user?.family_id).slice(0, 4)
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -283,6 +286,16 @@ function FamilyBoard({ user, family }) {
         )}
 
         <FamilyPhotoFrame />
+
+        {notes.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {notes.map((n) => (
+              <div key={n.id} className={`rounded-2xl border p-4 shadow ${noteCard(n.color)}`}>
+                <p className="whitespace-pre-wrap break-words text-lg font-bold text-gray-800 dark:text-gray-100">{n.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {agenda.length > 0 && (
           <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">

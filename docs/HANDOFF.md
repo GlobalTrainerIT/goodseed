@@ -109,6 +109,11 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   a "repeat weekly" box (family agenda + coach Board). New `/Calendar` page
   (`src/pages/Calendar.jsx`) — a month grid of family + followed-group events,
   parent-only, in PARENT_NAV; the Dashboard agenda links to it.
+- **Family notes lane**: a shared sticky-note message board (`familyNotes`
+  collection, syncs). `NotesLane` card on the Dashboard + ChildHome — anyone
+  posts a color-coded note (4 colors); notes render as sticky cards on the
+  kitchen board (colors shared via `noteCard()` from NotesLane). Settings: enable
+  toggle. Logic in `domain.js` (`addNote`/`removeNote`/`familyNotesList`).
 - **Family photo frame** (Skylight signature): a rotating kitchen-board photo
   frame. Photos are local-only (`src/lib/familyPhotos.js`, localStorage, capped
   at 12, downscaled JPEGs — same privacy model as roster photos, never synced).
@@ -168,9 +173,10 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    events to reach families cross-family — see the spawned task. Meal-plan lane
    now BUILT (see Major systems), and the shared to-do lane too — the family
    command-center is now agenda + month calendar + meal plan + to-do list.
-   Photo frame (Skylight signature) now BUILT too. Follow-ons: month-view event
-   click-to-edit; drag-to-reschedule; a family notes/message lane; surfacing
-   meals/todos on the /Calendar page.
+   Photo frame + family notes lane now BUILT too — the command-center is
+   feature-complete (calendar/events, month view, meal plan, to-dos, photos,
+   notes). Follow-ons: month-view event click-to-edit; drag-to-reschedule;
+   surfacing meals/todos on the /Calendar page.
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,

@@ -304,6 +304,10 @@ export function seedData() {
     { id: 'todo2', family_id: familyId, text: 'Water the plants 🌱', done: false, assigned_to: 'child1', created_by: 'parent1', created_date: daysAgo(0) },
   ]
 
+  const familyNotes = [
+    { id: 'note1', family_id: familyId, text: 'Great job this week, everyone! 🌟', color: 'yellow', created_by: 'parent1', created_at: daysAgo(1) },
+  ]
+
   const settings = {
     family_id: familyId,
     seedName: 'Seeds',
@@ -323,6 +327,7 @@ export function seedData() {
     mealsEnabled: true,
     todosEnabled: true,
     photosEnabled: true,
+    notesEnabled: true,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -356,6 +361,7 @@ export function seedData() {
     familyAltar: [],
     meals: [],
     todos,
+    familyNotes,
     settings,
   }
 }
