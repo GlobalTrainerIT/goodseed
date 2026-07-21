@@ -8,6 +8,7 @@ import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, arm
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
+import { upcomingEvents, groupByDay } from '@/lib/events'
 import { groupTypeOf, isGroup } from '@/lib/plan'
 
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -88,6 +89,8 @@ function GroupBoard({ user, group }) {
   const label = seedLabel()
   const verse = getVerseForWeek(new Date())
   const memorizedCount = kids.filter((k) => verseMemorizedThisWeek(k.id)).length
+  const gEvents = groupByDay(upcomingEvents(announcements, { days: 30 }))
+  const notices = announcements.filter((a) => !a.event_date)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-800 to-emerald-950 text-white">
@@ -113,11 +116,24 @@ function GroupBoard({ user, group }) {
           </div>
         )}
 
-        {announcements.length > 0 && (
+        {gEvents.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+              <span className="text-lg font-black uppercase tracking-wide text-sky-300">📅 Upcoming</span>
+              {gEvents.slice(0, 3).flatMap((day) => day.events.slice(0, 2).map((ev) => (
+                <span key={ev.id} className="text-lg font-semibold sm:text-xl">
+                  <b>{day.label}:</b> {ev.title}{ev.event_time ? ` · ${ev.event_time}` : ''}
+                </span>
+              )))}
+            </div>
+          </div>
+        )}
+
+        {notices.length > 0 && (
           <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
             <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
               <span className="text-lg font-black uppercase tracking-wide text-amber-300">📣 Announcements</span>
-              {announcements.slice(0, 4).map((a) => (
+              {notices.slice(0, 4).map((a) => (
                 <span key={a.id} className="text-lg font-semibold sm:text-xl">
                   {a.is_pinned && '📌 '}<b>{a.title}</b>{a.message ? ` — ${a.message}` : ''}
                 </span>
@@ -175,7 +191,8 @@ function FamilyBoard({ user, family }) {
   useCollection('fruitEarned') // subscribe so the fruit pill updates live
   useCollection('gratitude') // subscribe so the gratitude jar updates live
   useCollection('familyAltar') // subscribe so the altar line updates live
-  useFollowedData() // re-render when linked-group snapshots arrive
+  const ownAnnouncements = useCollection('announcements', (all) => all.filter((a) => a.family_id === user?.family_id))
+  const { followed, snapshots } = useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
   const flash = usePointFlash(kids)
   const label = seedLabel()
@@ -184,6 +201,8 @@ function FamilyBoard({ user, family }) {
   const nameOf = (id) => kids.find((k) => k.id === id)?.full_name || ''
   const altar = altarProgress(user?.family_id)
   const altarStreak = altarStreakWeeks(user?.family_id)
+  const groupEvents = followed.flatMap((f) => (snapshots[f.code]?.announcements || []).map((a) => ({ ...a, group: snapshots[f.code]?.group_name || f.groupName })))
+  const agenda = groupByDay(upcomingEvents([...ownAnnouncements, ...groupEvents], { days: 14 }))
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -253,6 +272,20 @@ function FamilyBoard({ user, family }) {
                   {nameOf(n.child_id) && <span className="text-green-200"> — {nameOf(n.child_id)}</span>}
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {agenda.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+              <span className="text-lg font-black uppercase tracking-wide text-sky-200">📅 This Week</span>
+              {agenda.slice(0, 4).flatMap((day) => day.events.slice(0, 2).map((ev) => (
+                <span key={ev.id || `${ev.event_date}-${ev.title}`} className="text-lg font-semibold sm:text-xl">
+                  <b>{day.label}:</b> {ev.title}{ev.event_time ? ` · ${ev.event_time}` : ''}
+                  {ev.group && <span className="text-green-200"> ({ev.group})</span>}
+                </span>
+              )))}
             </div>
           </div>
         )}

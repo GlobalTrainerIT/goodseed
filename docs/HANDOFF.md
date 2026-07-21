@@ -92,6 +92,18 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   ChildHome (both parent and child can check steps — shared state); 🕯️ status
   line on the kitchen board. Settings: enable + reward. Completion is idempotent
   (awards once/week even if steps are toggled). Logic in `domain.js`.
+- **Skylight calendar slice** (family command-center): dated events ride the
+  announcements layer — an announcement with `event_date`/`event_time` is an
+  event (`src/lib/events.js` helpers). Coach **Board** post form gained an
+  optional date+time → dated posts show in an "Upcoming events" section; family
+  **Dashboard** has an `UpcomingEvents` agenda card (parents add family events via
+  a dialog); both **Display** boards show a weekly agenda; the family agenda +
+  kitchen board also merge events from **followed groups' snapshots**
+  (`snapshots[code].announcements`) — so a coach's dated post lands on a following
+  family's calendar through the same channel notices already use. NOTE: the
+  cross-family hop depends on the `group-link` edge fn returning `event_date` on
+  announcement rows (verify/ensure it passes the field through). Only locally-
+  testable surfaces (same-family add→agenda→board, group Board+Display) verified.
 - **checkBadges re-entrancy fix**: a badge's `bonusSeeds` award re-enters
   checkBadges; the outer loop's stale `owned` set could double-create a later
   badge (exposed when Verse/Armor/Fruit bonus badges fire together). Now guarded
@@ -117,14 +129,11 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    - ✅ **Family altar (co-op)** — BUILT (see Major systems). The faith set is
      now complete: Verse of the Week, Armor of God, Fruit garden, Gratitude jar,
      Bible journey, Family Altar.
-2. **Skylight-Calendar-style expansion** (user idea). Skylight = wall/counter
-   touchscreen family organizer: shared calendar, chores, meal plan, to-dos,
-   photos. GoodSeed already has the kitchen board. Best crossover, and it's ON
-   the cross-context moat: **events flow group→family** — a coach posts
-   "Saturday game 9am" and it lands on the family's kitchen calendar. Build a
-   dated-events layer on the announcements Board + a weekly agenda on the
-   kitchen/Display board. Don't rebuild a full calendar app; do the family
-   command-center slice that ties to what we have.
+2. ✅ **Skylight-Calendar slice** — BUILT (dated events + agendas; see Major
+   systems). Follow-ons: confirm the `group-link` edge fn passes `event_date`
+   (see task) so coach events truly reach families; recurring events; a
+   meal-plan / shared to-do lane; an "events" nav entry or a dedicated /Calendar
+   month view if wanted (current slice is agenda-style, not a month grid).
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,
