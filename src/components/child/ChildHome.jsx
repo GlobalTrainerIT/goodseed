@@ -8,6 +8,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import SeedPackReveal from '@/components/gamification/SeedPackReveal'
 import ArmorOfGod from '@/components/shared/ArmorOfGod'
 import FruitGarden from '@/components/shared/FruitGarden'
+import GratitudeJar from '@/components/shared/GratitudeJar'
 import { levelRank } from '@/lib/faith'
 import { useCollection } from '@/lib/hooks'
 import { taskAppliesTo, seedLabel } from '@/lib/domain'
@@ -68,6 +69,8 @@ export default function ChildHome({ child }) {
       <ArmorOfGod familyId={child.family_id} />
 
       <FruitGarden childId={child.id} />
+
+      <GratitudeJar childId={child.id} interactive />
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">

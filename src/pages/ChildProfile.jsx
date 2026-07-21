@@ -10,6 +10,7 @@ import LevelProgress from '@/components/gamification/LevelProgress'
 import BadgeGrid from '@/components/gamification/BadgeGrid'
 import ActivityFeed from '@/components/family/ActivityFeed'
 import FruitGarden from '@/components/shared/FruitGarden'
+import GratitudeJar from '@/components/shared/GratitudeJar'
 import AwardSeedsDialog from '@/components/family/AwardSeedsDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { useRecord, useCollection, useCurrentUser } from '@/lib/hooks'
@@ -79,8 +80,9 @@ export default function ChildProfile() {
         </div>
       </Card>
 
-      <div className="mb-5">
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
         <FruitGarden childId={child.id} interactive={isParent} />
+        <GratitudeJar childId={child.id} interactive={isParent} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

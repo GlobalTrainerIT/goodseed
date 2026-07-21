@@ -32,6 +32,7 @@ export const COLLECTIONS = [
   'memoryVerses',
   'armorPieces',
   'fruitEarned',
+  'gratitude',
 ]
 
 const state = {}

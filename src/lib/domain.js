@@ -384,6 +384,82 @@ export function awardFruit(childId, fruitId, byUserId = null) {
   return fruit
 }
 
+// --------------------------------------------------------- prayer / gratitude
+// A daily reflection habit: a child (or a parent, for them) adds a short note of
+// thanks or a prayer to their "gratitude jar." The first note of a day grows a
+// daily streak and awards a small reward; the jar of notes shows warmly on the
+// kitchen board. Entries live in the `gratitude` collection.
+
+export function gratitudeEnabled() {
+  return getSettings().gratitudeEnabled !== false
+}
+
+/** Seeds granted for the first jar note of a day (configurable in Settings). */
+export function gratitudeReward() {
+  const r = getSettings().gratitudeReward
+  return Number.isFinite(r) ? r : 1
+}
+
+/** Consecutive days (ending today or yesterday) with a gratitude entry. */
+export function gratitudeStreakDays(childId, date = new Date()) {
+  const days = new Set(getAll('gratitude').filter((g) => g.child_id === childId).map((g) => g.day_key))
+  const cursor = new Date(date)
+  if (!days.has(localDayKey(cursor.toISOString()))) cursor.setDate(cursor.getDate() - 1)
+  let n = 0
+  while (days.has(localDayKey(cursor.toISOString()))) {
+    n += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return n
+}
+
+/** A child's jar notes, newest first. */
+export function gratitudeForChild(childId, limit = 20) {
+  return getAll('gratitude')
+    .filter((g) => g.child_id === childId)
+    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+    .slice(0, limit)
+}
+
+/** Recent jar notes across a whole family (the shared kitchen-board jar). */
+export function gratitudeRecent(familyId, limit = 6) {
+  return getAll('gratitude')
+    .filter((g) => g.family_id === familyId)
+    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+    .slice(0, limit)
+}
+
+/**
+ * Add a note to a child's gratitude jar. `kind` is 'thankful' or 'prayer'. The
+ * first note of a day grows the daily streak and awards the reward; extra notes
+ * the same day are welcome but don't re-pay.
+ */
+export function addGratitude(childId, kind, text, byUserId = null) {
+  const child = getById('users', childId)
+  const t = String(text || '').trim().slice(0, 140)
+  if (!child || !t) return null
+  const today = localDayKey(new Date().toISOString())
+  const firstToday = !getAll('gratitude').some((g) => g.child_id === childId && g.day_key === today)
+  create('gratitude', {
+    child_id: childId,
+    family_id: child.family_id,
+    day_key: today,
+    kind: kind === 'prayer' ? 'prayer' : 'thankful',
+    text: t,
+    created_by: byUserId,
+  })
+  let awarded = 0
+  const streak = gratitudeStreakDays(childId)
+  if (firstToday) {
+    if (streak > (child.gratitude_streak_best || 0)) update('users', childId, { gratitude_streak_best: streak })
+    const reward = gratitudeReward()
+    if (reward > 0) awardSeeds(childId, reward, kind === 'prayer' ? 'Prayer journal' : 'Gratitude journal')
+    else checkBadges(childId)
+    awarded = reward
+  }
+  return { awarded, streak, firstToday }
+}
+
 // ---------------------------------------------------------------- streaks
 function localDayKey(iso) {
   const d = new Date(iso)
@@ -446,6 +522,8 @@ function childBadgeContext(childId) {
     armorSuitsCompleted: Math.floor(armorConfirmed / ARMOR_SIZE),
     armorStreakBest: child?.armor_streak_best || 0,
     distinctFruits: new Set(getAll('fruitEarned').filter((f) => f.child_id === childId).map((f) => f.fruit_id)).size,
+    gratitudeCount: getAll('gratitude').filter((g) => g.child_id === childId).length,
+    gratitudeStreakBest: child?.gratitude_streak_best || 0,
   }
 }
 

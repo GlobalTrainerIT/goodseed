@@ -310,6 +310,8 @@ export function seedData() {
     armorEnabled: true,
     armorPieceReward: 2,
     fruitGardenEnabled: true,
+    gratitudeEnabled: true,
+    gratitudeReward: 1,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -339,6 +341,7 @@ export function seedData() {
     memoryVerses: [],
     armorPieces: [],
     fruitEarned: [],
+    gratitude: [],
     settings,
   }
 }

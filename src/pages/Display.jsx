@@ -4,7 +4,7 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent } from '@/lib/domain'
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
@@ -173,11 +173,14 @@ function FamilyBoard({ user, family }) {
   useCollection('memoryVerses') // subscribe so the memorized pill updates live
   useCollection('armorPieces') // subscribe so the armor pill updates live
   useCollection('fruitEarned') // subscribe so the fruit pill updates live
+  useCollection('gratitude') // subscribe so the gratitude jar updates live
   useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
   const flash = usePointFlash(kids)
   const label = seedLabel()
   const verse = getVerseForWeek(new Date())
+  const jar = gratitudeRecent(user?.family_id, 5)
+  const nameOf = (id) => kids.find((k) => k.id === id)?.full_name || ''
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -234,6 +237,20 @@ function FamilyBoard({ user, family }) {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {jar.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="text-lg font-black uppercase tracking-wide text-amber-200">💛 Gratitude Jar</span>
+              {jar.map((n) => (
+                <span key={n.id} className="text-lg font-semibold sm:text-xl">
+                  {n.kind === 'prayer' ? '🙏' : '💛'} {n.text}
+                  {nameOf(n.child_id) && <span className="text-green-200"> — {nameOf(n.child_id)}</span>}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

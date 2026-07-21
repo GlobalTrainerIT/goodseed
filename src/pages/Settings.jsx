@@ -376,6 +376,21 @@ export default function Settings() {
               <Row title="Fruit of the Spirit garden" desc="A nine-fruit collectible on each child's profile; awarding a Fruit behavior grows it.">
                 <Toggle checked={settings.fruitGardenEnabled !== false} onChange={(v) => updateSettings({ fruitGardenEnabled: v })} />
               </Row>
+              <Row title="Gratitude jar" desc="A daily thankful/prayer note that builds a streak and shows on the kitchen board.">
+                <Toggle checked={settings.gratitudeEnabled !== false} onChange={(v) => updateSettings({ gratitudeEnabled: v })} />
+              </Row>
+              {settings.gratitudeEnabled !== false && (
+                <Row title="Gratitude reward" desc="Points for the first jar note each day.">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="w-24"
+                    value={settings.gratitudeReward ?? 1}
+                    onChange={(e) => updateSettings({ gratitudeReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
+                  />
+                </Row>
+              )}
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

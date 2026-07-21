@@ -204,6 +204,32 @@ export const BADGE_DEFS = [
     check: (c) => (c.distinctFruits || 0) >= 9,
     bonusSeeds: 20,
   },
+
+  // ---- Prayer / gratitude jar ---------------------------------------------
+  {
+    badge_type: 'gratitude_first',
+    title: 'Grateful Heart',
+    description: 'Started your gratitude jar — "Give thanks in all circumstances." (1 Thessalonians 5:18)',
+    icon_emoji: '💛',
+    check: (c) => (c.gratitudeCount || 0) >= 1,
+    bonusSeeds: 3,
+  },
+  {
+    badge_type: 'gratitude_streak_7',
+    title: 'Thankful Every Day',
+    description: 'Added to your jar 7 days running — "Rejoice always, pray continually." (1 Thessalonians 5:16-17)',
+    icon_emoji: '🙏',
+    check: (c) => (c.gratitudeStreakBest || 0) >= 7,
+    bonusSeeds: 10,
+  },
+  {
+    badge_type: 'gratitude_30',
+    title: 'Overflowing',
+    description: 'Filled your jar with 30 notes of thanks and prayer — "My cup overflows." (Psalm 23:5)',
+    icon_emoji: '🫙',
+    check: (c) => (c.gratitudeCount || 0) >= 30,
+    bonusSeeds: 15,
+  },
 ]
 
 export function getBadgeDef(type) {
