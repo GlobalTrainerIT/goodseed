@@ -1,36 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button, Input, Textarea, Label, Dialog } from '@/components/ui'
 import { useCurrentUser } from '@/lib/hooks'
-import { create } from '@/lib/db'
+import { create, update, remove } from '@/lib/db'
 import { todayValue } from '@/lib/events'
 import { toast } from '@/lib/toast'
 
-// Shared dialog to add a family calendar event (a dated announcement). Used by
-// the dashboard agenda and the month-grid Calendar page. `defaultDate` seeds the
-// date field ('YYYY-MM-DD').
-export default function AddEventDialog({ open, familyId, defaultDate, onClose }) {
+// Shared dialog to add OR edit a family calendar event (a dated announcement).
+// Pass `event` to edit an existing one (adds Delete + saves in place); pass
+// `defaultDate` to seed the date when adding. Used by the dashboard agenda and
+// the month-grid Calendar page.
+export default function AddEventDialog({ open, familyId, event, defaultDate, onClose }) {
   const user = useCurrentUser()
+  const editing = !!event
   const [title, setTitle] = useState('')
-  const [date, setDate] = useState(defaultDate || todayValue())
+  const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [notes, setNotes] = useState('')
   const [weekly, setWeekly] = useState(false)
 
+  // Seed the fields whenever the dialog opens (from the event when editing, or
+  // the defaults when adding).
+  useEffect(() => {
+    if (!open) return
+    if (event) {
+      setTitle(event.title || '')
+      setDate(event.event_date || todayValue())
+      setTime(event.event_time || '')
+      setNotes(event.message || '')
+      setWeekly(event.repeat === 'weekly')
+    } else {
+      setTitle('')
+      setDate(defaultDate || todayValue())
+      setTime('')
+      setNotes('')
+      setWeekly(false)
+    }
+  }, [open, event, defaultDate])
+
   function save() {
     if (!title.trim() || !date) return
-    create('announcements', {
-      family_id: familyId,
-      title: title.trim(),
-      message: notes.trim(),
-      event_date: date,
-      event_time: time.trim(),
-      repeat: weekly ? 'weekly' : 'none',
-      is_pinned: false,
-      created_by: user?.id,
-      created_at: new Date().toISOString(),
-    })
-    toast({ title: 'Event added!', message: 'It shows on your dashboard, calendar, and kitchen board.', emoji: '📅' })
-    setTitle(''); setTime(''); setNotes(''); setDate(defaultDate || todayValue()); setWeekly(false)
+    const payload = { title: title.trim(), message: notes.trim(), event_date: date, event_time: time.trim(), repeat: weekly ? 'weekly' : 'none' }
+    if (editing) {
+      update('announcements', event.id, payload)
+      toast({ title: 'Event updated', emoji: '📅' })
+    } else {
+      create('announcements', { family_id: familyId, ...payload, is_pinned: false, created_by: user?.id, created_at: new Date().toISOString() })
+      toast({ title: 'Event added!', message: 'It shows on your dashboard, calendar, and kitchen board.', emoji: '📅' })
+    }
+    onClose()
+  }
+
+  function del() {
+    remove('announcements', event.id)
+    toast({ title: 'Event removed', emoji: '🗑️' })
     onClose()
   }
 
@@ -38,12 +60,17 @@ export default function AddEventDialog({ open, familyId, defaultDate, onClose })
     <Dialog
       open={open}
       onClose={onClose}
-      title="Add a family event"
-      description="Games, appointments, birthdays — anything to keep on the family calendar."
+      title={editing ? 'Edit event' : 'Add a family event'}
+      description={editing ? (weekly ? 'This event repeats weekly — changes apply to the whole series.' : 'Update the details below.') : 'Games, appointments, birthdays — anything to keep on the family calendar.'}
       footer={
         <>
+          {editing && (
+            <Button variant="outline" onClick={del} className="mr-auto border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900">
+              Delete
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} disabled={!title.trim() || !date}>Add event</Button>
+          <Button onClick={save} disabled={!title.trim() || !date}>{editing ? 'Save' : 'Add event'}</Button>
         </>
       }
     >

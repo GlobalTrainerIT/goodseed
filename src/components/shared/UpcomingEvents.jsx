@@ -4,7 +4,7 @@ import { CalendarDays, Plus, Trash2, Clock } from 'lucide-react'
 import { Card, Button, Badge } from '@/components/ui'
 import { useCollection } from '@/lib/hooks'
 import { useFollowedData } from '@/lib/groupLink'
-import { remove } from '@/lib/db'
+import { remove, getById } from '@/lib/db'
 import { upcomingEvents, groupByDay } from '@/lib/events'
 import AddEventDialog from '@/components/shared/AddEventDialog'
 import { toast } from '@/lib/toast'
@@ -16,6 +16,11 @@ export default function UpcomingEvents({ familyId, canAdd = false, days = 21 }) 
   const announcements = useCollection('announcements')
   const { followed, snapshots } = useFollowedData()
   const [adding, setAdding] = useState(false)
+  const [editEvent, setEditEvent] = useState(null)
+
+  // Own events open the editor (occurrences resolve to their base record);
+  // followed-group events are read-only.
+  const openEvent = (e) => setEditEvent(getById('announcements', e.id) || e)
 
   const own = announcements.filter((a) => a.family_id === familyId)
   const fromGroups = followed.flatMap((f) =>
@@ -50,7 +55,11 @@ export default function UpcomingEvents({ familyId, canAdd = false, days = 21 }) 
               <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">{day.label}</p>
               <div className="space-y-1.5">
                 {day.events.map((e) => (
-                  <EventRow key={e.id || `${e.event_date}-${e.title}`} event={e} canDelete={canAdd && !e._external} />
+                  <EventRow
+                    key={e.id || `${e.event_date}-${e.title}`}
+                    event={e}
+                    onEdit={canAdd && !e._external ? () => openEvent(e) : null}
+                  />
                 ))}
               </div>
             </div>
@@ -59,14 +68,20 @@ export default function UpcomingEvents({ familyId, canAdd = false, days = 21 }) 
       )}
 
       <AddEventDialog open={adding} familyId={familyId} onClose={() => setAdding(false)} />
+      <AddEventDialog open={!!editEvent} familyId={familyId} event={editEvent} onClose={() => setEditEvent(null)} />
     </Card>
   )
 }
 
-function EventRow({ event, canDelete }) {
+function EventRow({ event, onEdit }) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-gray-100 p-2.5 dark:border-gray-800">
-      <div className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={onEdit || undefined}
+        className={`min-w-0 flex-1 text-left ${onEdit ? 'cursor-pointer' : 'cursor-default'}`}
+        title={onEdit ? 'Tap to edit' : undefined}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-semibold text-gray-900 dark:text-gray-100">{event.title}</p>
           {event.event_time && (
@@ -78,8 +93,8 @@ function EventRow({ event, canDelete }) {
           {event._external && <Badge variant="blue">{event.group}</Badge>}
         </div>
         {event.message && <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{event.message}</p>}
-      </div>
-      {canDelete && (
+      </button>
+      {onEdit && (
         <button
           onClick={() => { remove('announcements', event.id); toast({ title: 'Event removed', emoji: '🗑️' }) }}
           className="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500"

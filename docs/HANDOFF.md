@@ -175,8 +175,12 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    command-center is now agenda + month calendar + meal plan + to-do list.
    Photo frame + family notes lane now BUILT too — the command-center is
    feature-complete (calendar/events, month view, meal plan, to-dos, photos,
-   notes). Follow-ons: month-view event click-to-edit; drag-to-reschedule;
-   surfacing meals/todos on the /Calendar page.
+   notes). **Event click-to-edit** also done: tapping an event on /Calendar or
+   the dashboard agenda opens `AddEventDialog` in edit mode (update in place +
+   Delete); recurrence occurrences resolve to their base record (via
+   `getById`) so edits/deletes apply to the whole series. Follow-ons:
+   drag-to-reschedule; surfacing meals/todos on the /Calendar page; per-occurrence
+   edits (currently series-level only).
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,

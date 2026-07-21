@@ -8,6 +8,7 @@ import PageHeader from '@/components/shared/PageHeader'
 import { Card, Button } from '@/components/ui'
 import AddEventDialog from '@/components/shared/AddEventDialog'
 import { useCurrentUser, useCollection } from '@/lib/hooks'
+import { getById } from '@/lib/db'
 import { useFollowedData } from '@/lib/groupLink'
 import { expandInRange, eventDate, todayValue } from '@/lib/events'
 
@@ -22,6 +23,15 @@ export default function Calendar() {
   const { followed, snapshots } = useFollowedData()
   const [monthAnchor, setMonthAnchor] = useState(() => startOfMonth(new Date()))
   const [addFor, setAddFor] = useState(null) // 'YYYY-MM-DD' when adding on a day
+  const [editEvent, setEditEvent] = useState(null) // base announcement record when editing
+
+  // Open the editor for one of our own events (external group events are
+  // read-only). Recurrence occurrences resolve to their base record so edits
+  // apply to the whole series, not just one week.
+  function openEvent(ev) {
+    if (ev._external || !canAdd) return
+    setEditEvent(getById('announcements', ev.id) || ev)
+  }
 
   if (!user) return null
   const canAdd = user.role === 'parent'
@@ -88,11 +98,12 @@ export default function Calendar() {
                   {dayEvents.slice(0, 3).map((e, i) => (
                     <div
                       key={(e.id || e.title) + i}
-                      title={`${e.event_time ? e.event_time + ' · ' : ''}${e.title}${e.group ? ` (${e.group})` : ''}`}
+                      onClick={(ev) => { ev.stopPropagation(); openEvent(e) }}
+                      title={`${e.event_time ? e.event_time + ' · ' : ''}${e.title}${e.group ? ` (${e.group})` : ''}${!e._external && canAdd ? ' — tap to edit' : ''}`}
                       className={`truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight ${
                         e._external
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                          : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+                          : `bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 ${canAdd ? 'hover:bg-indigo-200 dark:hover:bg-indigo-800' : ''}`
                       }`}
                     >
                       {e.event_time ? `${e.event_time} ` : ''}{e.title}
@@ -107,6 +118,7 @@ export default function Calendar() {
       </Card>
 
       <AddEventDialog open={!!addFor} familyId={user.family_id} defaultDate={addFor} onClose={() => setAddFor(null)} />
+      <AddEventDialog open={!!editEvent} familyId={user.family_id} event={editEvent} onClose={() => setEditEvent(null)} />
     </div>
   )
 }
