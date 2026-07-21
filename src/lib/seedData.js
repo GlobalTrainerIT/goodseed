@@ -313,6 +313,8 @@ export function seedData() {
     gratitudeEnabled: true,
     gratitudeReward: 1,
     journeyEnabled: true,
+    altarEnabled: true,
+    altarReward: 5,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -343,6 +345,7 @@ export function seedData() {
     armorPieces: [],
     fruitEarned: [],
     gratitude: [],
+    familyAltar: [],
     settings,
   }
 }

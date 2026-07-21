@@ -4,7 +4,7 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks } from '@/lib/domain'
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
@@ -174,6 +174,7 @@ function FamilyBoard({ user, family }) {
   useCollection('armorPieces') // subscribe so the armor pill updates live
   useCollection('fruitEarned') // subscribe so the fruit pill updates live
   useCollection('gratitude') // subscribe so the gratitude jar updates live
+  useCollection('familyAltar') // subscribe so the altar line updates live
   useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
   const flash = usePointFlash(kids)
@@ -181,6 +182,8 @@ function FamilyBoard({ user, family }) {
   const verse = getVerseForWeek(new Date())
   const jar = gratitudeRecent(user?.family_id, 5)
   const nameOf = (id) => kids.find((k) => k.id === id)?.full_name || ''
+  const altar = altarProgress(user?.family_id)
+  const altarStreak = altarStreakWeeks(user?.family_id)
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -251,6 +254,15 @@ function FamilyBoard({ user, family }) {
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {(altar.doneCount > 0 || altar.completed) && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-3 text-center backdrop-blur">
+            <p className="text-lg font-black sm:text-xl">
+              🕯️ Family Altar — {altar.completed ? 'lit this week! 🎉' : `${altar.doneCount}/${altar.total} done together`}
+              {altarStreak > 1 && <span className="text-amber-200"> · 🔥 {altarStreak} weeks</span>}
+            </p>
           </div>
         )}
 

@@ -6,6 +6,7 @@ import StatCard from '@/components/dashboard/StatCard'
 import BibleVerseCard from '@/components/dashboard/BibleVerseCard'
 import VerseChallenge from '@/components/shared/VerseChallenge'
 import ArmorOfGod from '@/components/shared/ArmorOfGod'
+import FamilyAltar from '@/components/shared/FamilyAltar'
 import ShoutOutCard from '@/components/dashboard/ShoutOutCard'
 import LeaderboardCard from '@/components/dashboard/LeaderboardCard'
 import ChildHome from '@/components/child/ChildHome'
@@ -70,6 +71,7 @@ export default function Dashboard() {
           <BibleVerseCard />
           <VerseChallenge familyId={user.family_id} />
           <ArmorOfGod familyId={user.family_id} />
+          <FamilyAltar familyId={user.family_id} />
           <ShoutOutCard />
         </div>
         <div className="space-y-5">

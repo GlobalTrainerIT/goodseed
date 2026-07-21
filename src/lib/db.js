@@ -33,6 +33,7 @@ export const COLLECTIONS = [
   'armorPieces',
   'fruitEarned',
   'gratitude',
+  'familyAltar',
 ]
 
 const state = {}

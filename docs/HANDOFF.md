@@ -83,6 +83,15 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   (current stop, road to next, whole trail). Capstone badge `journey_complete`
   (The Whole Story, at 1600 — mirror the final threshold if you retune journey.js).
   Settings: enable toggle.
+- **Family Altar** (weekly co-op devotional): a whole-family weekly devotional
+  (`src/lib/altar.js`, 5 steps) reusing the Weekly-Boss co-op idea. Anyone in the
+  family checks off steps together; finishing all 5 lights the altar → every
+  child earns the reward once + a shared activity, keyed per ISO week in
+  `familyAltar` (syncs). Consecutive-week streak. 2 badges (Family Altar,
+  Faithful Household 4-wk). Interactive `FamilyAltar` card on Dashboard +
+  ChildHome (both parent and child can check steps — shared state); 🕯️ status
+  line on the kitchen board. Settings: enable + reward. Completion is idempotent
+  (awards once/week even if steps are toggled). Logic in `domain.js`.
 - **checkBadges re-entrancy fix**: a badge's `bonusSeeds` award re-enters
   checkBadges; the outer loop's stale `owned` set could double-create a later
   badge (exposed when Verse/Armor/Fruit bonus badges fire together). Now guarded
@@ -105,8 +114,9 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
      visually blossoms more as fruit counts rise.
    - ✅ **Prayer / gratitude jar** — BUILT (see Major systems).
    - ✅ **Bible journey map** — BUILT (see Major systems).
-   - **Family altar (co-op)**: a weekly devotional the whole family completes
-     together — reuse the existing Weekly Boss co-op mechanic.
+   - ✅ **Family altar (co-op)** — BUILT (see Major systems). The faith set is
+     now complete: Verse of the Week, Armor of God, Fruit garden, Gratitude jar,
+     Bible journey, Family Altar.
 2. **Skylight-Calendar-style expansion** (user idea). Skylight = wall/counter
    touchscreen family organizer: shared calendar, chores, meal plan, to-dos,
    photos. GoodSeed already has the kitchen board. Best crossover, and it's ON

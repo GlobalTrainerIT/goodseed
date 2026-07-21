@@ -9,6 +9,7 @@ import { levelRank, crossedRank, FRUIT_OF_SPIRIT } from './faith'
 import { getVerseForWeek, weekKey, weekKeyOffset } from './verses'
 import { ARMOR, ARMOR_SIZE, armorSuitBonus } from './armor'
 import { JOURNEY_STOPS } from './journey'
+import { ALTAR_STEPS, ALTAR_SIZE } from './altar'
 import { toast } from './toast'
 import { clamp } from './utils'
 
@@ -477,6 +478,77 @@ export function addGratitude(childId, kind, text, byUserId = null) {
   return { awarded, streak, firstToday }
 }
 
+// -------------------------------------------------------------- family altar
+// A weekly whole-family devotional (a co-op, like the Weekly Boss). Anyone in
+// the family checks off the week's steps together; finishing every step lights
+// the altar and rewards every child once. One record per family per ISO week in
+// the `familyAltar` collection.
+
+export function altarEnabled() {
+  return getSettings().altarEnabled !== false
+}
+
+/** Seeds each child earns when the family completes the week's altar. */
+export function altarReward() {
+  const r = getSettings().altarReward
+  return Number.isFinite(r) ? r : 5
+}
+
+function altarRecord(familyId, wk) {
+  return getAll('familyAltar').find((a) => a.family_id === familyId && a.week_key === wk) || null
+}
+
+/** This week's altar progress for a family. */
+export function altarProgress(familyId, date = new Date()) {
+  const wk = weekKey(date)
+  const rec = altarRecord(familyId, wk)
+  const done = rec?.steps_done || []
+  return { weekKey: wk, doneIds: done, doneCount: done.length, total: ALTAR_SIZE, completed: !!rec?.completed }
+}
+
+/** Consecutive weeks (ending this week or last) the family lit the altar. */
+export function altarStreakWeeks(familyId, date = new Date()) {
+  const done = new Set(getAll('familyAltar').filter((a) => a.family_id === familyId && a.completed).map((a) => a.week_key))
+  let n = 0
+  const start = done.has(weekKey(date)) ? 0 : 1
+  for (let i = start; ; i++) {
+    if (done.has(weekKeyOffset(i, date))) n += 1
+    else break
+  }
+  return n
+}
+
+/** Toggle one altar step for the current week. Completing the last step lights
+ * the altar and rewards every child once. */
+export function toggleAltarStep(familyId, stepId, byUserId = null, date = new Date()) {
+  if (!ALTAR_STEPS.some((s) => s.id === stepId)) return null
+  const wk = weekKey(date)
+  let rec = altarRecord(familyId, wk)
+  if (!rec) rec = create('familyAltar', { family_id: familyId, week_key: wk, steps_done: [], completed: false })
+  const wasCompleted = !!rec.completed
+  const has = rec.steps_done.includes(stepId)
+  const steps_done = has ? rec.steps_done.filter((s) => s !== stepId) : [...rec.steps_done, stepId]
+  const nowComplete = steps_done.length >= ALTAR_SIZE
+  update('familyAltar', rec.id, { steps_done, completed: wasCompleted || nowComplete, completed_date: wasCompleted || !nowComplete ? rec.completed_date : new Date().toISOString() })
+  // Reward once, the first time the altar is fully lit this week.
+  if (nowComplete && !wasCompleted) completeAltar(familyId, date)
+  return { doneCount: steps_done.length, completed: wasCompleted || nowComplete }
+}
+
+function completeAltar(familyId, date = new Date()) {
+  const reward = altarReward()
+  const streak = altarStreakWeeks(familyId, date)
+  addActivity(familyId, null, 'altar', `The family lit the Family Altar together! 🕯️${streak > 1 ? ` — ${streak} weeks running` : ''}`, 0)
+  getAll('users')
+    .filter((u) => u.family_id === familyId && u.role === 'child')
+    .forEach((k) => {
+      if (reward > 0) awardSeeds(k.id, reward, 'Family Altar')
+      else checkBadges(k.id)
+      notify(k.id, 'family', 'Family Altar lit! 🕯️', 'Your family finished this week’s devotional together.', '/Dashboard')
+    })
+  toast({ title: '🕯️ Family Altar complete!', message: `Everyone earned +${reward} for finishing this week’s devotional together.`, emoji: '🕯️' })
+}
+
 // ---------------------------------------------------------------- streaks
 function localDayKey(iso) {
   const d = new Date(iso)
@@ -541,6 +613,7 @@ function childBadgeContext(childId) {
     distinctFruits: new Set(getAll('fruitEarned').filter((f) => f.child_id === childId).map((f) => f.fruit_id)).size,
     gratitudeCount: getAll('gratitude').filter((g) => g.child_id === childId).length,
     gratitudeStreakBest: child?.gratitude_streak_best || 0,
+    altarWeeksCompleted: getAll('familyAltar').filter((a) => a.family_id === child?.family_id && a.completed).length,
   }
 }
 

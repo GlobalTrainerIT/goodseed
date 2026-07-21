@@ -231,6 +231,24 @@ export const BADGE_DEFS = [
     bonusSeeds: 15,
   },
 
+  // ---- Family altar (weekly co-op devotional) -----------------------------
+  {
+    badge_type: 'altar_first',
+    title: 'Family Altar',
+    description: 'Completed a Family Altar devotional together — "As for me and my house, we will serve the Lord." (Joshua 24:15)',
+    icon_emoji: '🕯️',
+    check: (c) => (c.altarWeeksCompleted || 0) >= 1,
+    bonusSeeds: 5,
+  },
+  {
+    badge_type: 'altar_4',
+    title: 'Faithful Household',
+    description: 'Completed the Family Altar 4 weeks — "Let us hold unswervingly to the hope we profess." (Hebrews 10:23)',
+    icon_emoji: '🏡',
+    check: (c) => (c.altarWeeksCompleted || 0) >= 4,
+    bonusSeeds: 15,
+  },
+
   // ---- Bible journey capstone (threshold mirrors journey.js final stop) ----
   {
     badge_type: 'journey_complete',

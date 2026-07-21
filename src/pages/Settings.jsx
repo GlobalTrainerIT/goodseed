@@ -394,6 +394,21 @@ export default function Settings() {
               <Row title="Bible journey map" desc="A story-milestone path each child travels as their lifetime seeds grow.">
                 <Toggle checked={settings.journeyEnabled !== false} onChange={(v) => updateSettings({ journeyEnabled: v })} />
               </Row>
+              <Row title="Family Altar" desc="A weekly whole-family devotional; finishing every step rewards every child.">
+                <Toggle checked={settings.altarEnabled !== false} onChange={(v) => updateSettings({ altarEnabled: v })} />
+              </Row>
+              {settings.altarEnabled !== false && (
+                <Row title="Altar reward" desc="Points each child earns when the family completes the week's altar.">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="w-24"
+                    value={settings.altarReward ?? 5}
+                    onChange={(e) => updateSettings({ altarReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
+                  />
+                </Row>
+              )}
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"
