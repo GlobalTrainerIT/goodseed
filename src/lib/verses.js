@@ -1,4 +1,4 @@
-import { getDayOfYear } from 'date-fns'
+import { getDayOfYear, getISOWeek, getISOWeekYear } from 'date-fns'
 
 /**
  * Curated, encouraging verses focused on hard work, kindness, family,
@@ -60,4 +60,30 @@ export const VERSES = [
 export function getVerseForDate(date = new Date()) {
   const idx = getDayOfYear(date) % VERSES.length
   return { ...VERSES[idx], date: date.toISOString() }
+}
+
+// ---- weekly memory verse ---------------------------------------------------
+// A single verse per ISO week, the same for everyone in a group or family, so a
+// leader/parent can run a "Verse of the Week" memory challenge. It rotates every
+// week and the key is stable, which lets us record who memorized each week and
+// count consecutive-week streaks.
+
+/** Stable ISO-week identifier, e.g. "2026-W29". Used to key memorized records. */
+export function weekKey(date = new Date()) {
+  return `${getISOWeekYear(date)}-W${String(getISOWeek(date)).padStart(2, '0')}`
+}
+
+/** The week key `weeks` weeks before `from` (robust across year boundaries). */
+export function weekKeyOffset(weeks, from = new Date()) {
+  const d = new Date(from)
+  d.setDate(d.getDate() - weeks * 7)
+  return weekKey(d)
+}
+
+/** The memory verse for the given date's week. Deterministic and rotating. */
+export function getVerseForWeek(date = new Date()) {
+  // Mix year and week so the sequence advances every week and doesn't repeat
+  // within a year (53 = max ISO weeks in a year).
+  const idx = (getISOWeekYear(date) * 53 + getISOWeek(date)) % VERSES.length
+  return { ...VERSES[idx], week: weekKey(date) }
 }

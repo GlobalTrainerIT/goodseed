@@ -42,16 +42,23 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   stripe-webhook, create-portal. Old $99 price retired but still mapped.
 - **Faith**: `src/lib/faith.js` — Fruit of the Spirit pack, level ranks
   (Seed→Sprout→…→Mighty Oak), 5 faith badges w/ verses (in `src/lib/badges.js`).
+- **Verse of the Week** (Scripture-memory challenge): rotating weekly verse
+  (`getVerseForWeek`/`weekKey` in `src/lib/verses.js`), leader/parent marks a kid
+  "memorized" → awards configurable seeds + grows a consecutive-week streak;
+  records in the `memoryVerses` collection (syncs). 3 verse badges (Word Planted,
+  Scripture Keeper 4-wk, Hidden in the Heart 12-verse). Reusable
+  `VerseChallenge` card on coach Roster + family Dashboard; weekly verse + 📖
+  memorized marks on both Display boards. Settings: enable + reward amount.
+  Logic in `domain.js` (`markVerseMemorized`/`unmarkVerseMemorized`/streak).
 - **Compliance/pages**: /privacy (COPPA section), /terms, /parent-promise,
   /for-teams sales page. Internal docs in `docs/`.
 
 ## NEXT UP (user greenlit)
-1. **Verse of the Week / Scripture-memory challenge** (highest value — widens
-   the one axis ClassDojo can't touch). Spec: a rotating weekly memory verse;
-   a leader/parent marks a kid "memorized" → awards points (+ a faith badge for
-   streaks of weeks). Group + family. Reuse `src/lib/verses.js` (has VERSES +
-   getVerseForDate). Consider a `memoryVerses` setting or a small schedule.
-   Show on Roster/Board (groups), Dashboard/kitchen board (family).
+1. ✅ **Verse of the Week / Scripture-memory challenge** — BUILT (see Major
+   systems above). Possible follow-ons if wanted: custom per-group verse
+   schedule (pick the week's verse instead of auto-rotation); let kids
+   self-report memorized (parent/coach confirms); a "verses memorized" stat on
+   ChildProfile/Reports; badge for a longer streak.
 2. **Skylight-Calendar-style expansion** (user idea). Skylight = wall/counter
    touchscreen family organizer: shared calendar, chores, meal plan, to-dos,
    photos. GoodSeed already has the kitchen board. Best crossover, and it's ON

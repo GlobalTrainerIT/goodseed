@@ -343,6 +343,21 @@ export default function Settings() {
               <Row title="Enable Seed Packs" desc="Children earn packs every 10 tasks or at streak milestones.">
                 <Toggle checked={settings.enableSeedPacks} onChange={(v) => updateSettings({ enableSeedPacks: v })} />
               </Row>
+              <Row title="Verse of the Week" desc="Run a weekly Scripture-memory challenge; mark a child memorized to award points.">
+                <Toggle checked={settings.memoryVerseEnabled !== false} onChange={(v) => updateSettings({ memoryVerseEnabled: v })} />
+              </Row>
+              {settings.memoryVerseEnabled !== false && (
+                <Row title="Verse reward" desc="Points awarded when a child memorizes the week's verse.">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="w-24"
+                    value={settings.memoryVerseReward ?? 5}
+                    onChange={(e) => updateSettings({ memoryVerseReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
+                  />
+                </Row>
+              )}
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

@@ -305,6 +305,8 @@ export function seedData() {
     seedNameSingular: 'Seed',
     allowStreakSavers: false,
     enableSeedPacks: true,
+    memoryVerseEnabled: true,
+    memoryVerseReward: 5,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -331,6 +333,7 @@ export function seedData() {
     seedPacks,
     missions,
     leaderboardSnapshots,
+    memoryVerses: [],
     settings,
   }
 }

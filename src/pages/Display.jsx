@@ -4,8 +4,8 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion } from '@/lib/domain'
-import { getVerseForDate } from '@/lib/verses'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek } from '@/lib/domain'
+import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
 import { groupTypeOf, isGroup } from '@/lib/plan'
@@ -81,10 +81,13 @@ function GroupBoard({ user, group }) {
     all.filter((a) => a.family_id === user?.family_id)
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || new Date(b.created_at) - new Date(a.created_at))
   )
+  useCollection('memoryVerses') // subscribe so memorized marks update live
   const flash = usePointFlash(kids)
   const type = groupTypeOf(group)
   const total = kids.reduce((s, k) => s + (k.seed_balance || 0), 0)
   const label = seedLabel()
+  const verse = getVerseForWeek(new Date())
+  const memorizedCount = kids.filter((k) => verseMemorizedThisWeek(k.id)).length
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-800 to-emerald-950 text-white">
@@ -106,7 +109,7 @@ function GroupBoard({ user, group }) {
           <div className="flex flex-1 items-center justify-center"><p className="text-2xl text-emerald-200">Add kids to your roster to start the board.</p></div>
         ) : (
           <div className="mt-8 grid flex-1 auto-rows-min grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {kids.map((kid, i) => <GroupRow key={kid.id} kid={kid} rank={i} flashBy={flash[kid.id]} label={label} />)}
+            {kids.map((kid, i) => <GroupRow key={kid.id} kid={kid} rank={i} flashBy={flash[kid.id]} label={label} memorized={verseMemorizedThisWeek(kid.id)} />)}
           </div>
         )}
 
@@ -122,12 +125,22 @@ function GroupBoard({ user, group }) {
             </div>
           </div>
         )}
+
+        {kids.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 text-center backdrop-blur">
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-200">
+              📖 Verse of the Week{memorizedCount > 0 ? ` · ${memorizedCount} memorized` : ''}
+            </p>
+            <p className="mt-1 text-lg font-semibold italic sm:text-2xl">“{verse.verse_text}”</p>
+            <p className="mt-1 text-sm font-bold text-emerald-100">{verse.reference}</p>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function GroupRow({ kid, rank, flashBy, label }) {
+function GroupRow({ kid, rank, flashBy, label, memorized }) {
   const photo = useRosterPhoto(kid.id)
   const shown = photo ? { ...kid, avatar_photo: photo } : kid
   const top = rank < 3
@@ -136,7 +149,7 @@ function GroupRow({ kid, rank, flashBy, label }) {
       <span className="w-10 text-center text-3xl font-black sm:text-4xl">{MEDALS[rank] || <span className="text-emerald-200">{rank + 1}</span>}</span>
       <Avatar user={shown} size="lg" ring />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-2xl font-extrabold sm:text-3xl">{kid.full_name}</p>
+        <p className="truncate text-2xl font-extrabold sm:text-3xl">{kid.full_name} {memorized && <span title="Memorized this week's verse">📖</span>}</p>
         <p className="text-sm font-semibold text-emerald-200">{label}</p>
       </div>
       <div className="text-right">
@@ -157,11 +170,12 @@ function FamilyBoard({ user, family }) {
   )
   const tasks = useCollection('tasks', (all) => all.filter((t) => t.family_id === user?.family_id && t.status === 'active'))
   useCollection('completions') // subscribe so "tasks left" recomputes on approval
+  useCollection('memoryVerses') // subscribe so the memorized pill updates live
   useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
   const flash = usePointFlash(kids)
   const label = seedLabel()
-  const verse = getVerseForDate(new Date())
+  const verse = getVerseForWeek(new Date())
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -206,6 +220,7 @@ function FamilyBoard({ user, family }) {
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-base font-semibold">
                     {(kid.streak_current || 0) > 0 && <span className="rounded-full bg-white/15 px-3 py-1">🔥 {kid.streak_current} day{kid.streak_current === 1 ? '' : 's'}</span>}
+                    {verseMemorizedThisWeek(kid.id) && <span className="rounded-full bg-white/15 px-3 py-1">📖 Verse ✓</span>}
                     <span className="rounded-full bg-white/15 px-3 py-1">{roll.rank.emoji} {roll.rank.name}</span>
                     {roll.hasGroups && <span className="rounded-full bg-white/15 px-3 py-1">🌍 {roll.grandTotal} total</span>}
                     <span className="rounded-full bg-white/15 px-3 py-1">{left > 0 ? `📋 ${left} to do` : '✅ All done!'}</span>
@@ -217,7 +232,7 @@ function FamilyBoard({ user, family }) {
         )}
 
         <div className="mt-6 rounded-2xl bg-white/10 px-6 py-4 text-center backdrop-blur">
-          <p className="text-xs font-black uppercase tracking-widest text-green-200">Verse of the Day</p>
+          <p className="text-xs font-black uppercase tracking-widest text-green-200">📖 Verse of the Week</p>
           <p className="mt-1 text-lg font-semibold italic sm:text-2xl">“{verse.verse_text}”</p>
           <p className="mt-1 text-sm font-bold text-green-100">{verse.reference}</p>
         </div>

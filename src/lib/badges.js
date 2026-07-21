@@ -136,6 +136,30 @@ export const BADGE_DEFS = [
     check: (c) => c.totalSeedsEarned >= 250,
     bonusSeeds: 15,
   },
+  {
+    badge_type: 'verse_first',
+    title: 'Word Planted',
+    description: 'Memorized your first weekly verse — "Your word I have hidden in my heart." (Psalm 119:11)',
+    icon_emoji: '📖',
+    check: (c) => (c.memoryVersesCount || 0) >= 1,
+    bonusSeeds: 3,
+  },
+  {
+    badge_type: 'verse_streak_4',
+    title: 'Scripture Keeper',
+    description: 'Memorized a verse 4 weeks in a row — "that I might not sin against You." (Psalm 119:11)',
+    icon_emoji: '📖',
+    check: (c) => (c.memoryStreakBest || 0) >= 4,
+    bonusSeeds: 15,
+  },
+  {
+    badge_type: 'verse_master',
+    title: 'Hidden in the Heart',
+    description: 'Memorized 12 weekly verses — "I have treasured Your words in my heart." (Job 23:12)',
+    icon_emoji: '💎',
+    check: (c) => (c.memoryVersesCount || 0) >= 12,
+    bonusSeeds: 25,
+  },
 ]
 
 export function getBadgeDef(type) {

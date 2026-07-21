@@ -2,10 +2,11 @@
  * Business logic: seed flows, streaks, XP/levels, badges, approvals,
  * redemptions, goals, weekly boss, notifications.
  */
-import { getAll, getById, create, update, getSettings, updateSettings } from './db'
+import { getAll, getById, create, update, remove, getSettings, updateSettings } from './db'
 import { BADGE_DEFS } from './badges'
 import { LEVEL_THRESHOLDS } from './constants'
 import { levelRank, crossedRank } from './faith'
+import { getVerseForWeek, weekKey, weekKeyOffset } from './verses'
 import { toast } from './toast'
 import { clamp } from './utils'
 
@@ -110,6 +111,97 @@ export function seedLabel() {
   return getSettings().seedName || 'Seeds'
 }
 
+// ---------------------------------------------------------------- memory verse
+// "Verse of the Week": a leader or parent marks a child as having memorized this
+// week's verse, which awards seeds and grows a consecutive-week streak. Records
+// live in the `memoryVerses` collection, keyed by ISO week so a child can be
+// marked at most once per week and streaks are easy to count.
+
+export function memoryVerseEnabled() {
+  return getSettings().memoryVerseEnabled !== false
+}
+
+/** Seeds granted for memorizing a week's verse (configurable in Settings). */
+export function memoryVerseReward() {
+  const r = getSettings().memoryVerseReward
+  return Number.isFinite(r) ? r : 5
+}
+
+function memoryRecords(childId) {
+  return getAll('memoryVerses').filter((m) => m.child_id === childId)
+}
+
+/** Has this child already been marked for the current week's verse? */
+export function verseMemorizedThisWeek(childId, date = new Date()) {
+  const wk = weekKey(date)
+  return memoryRecords(childId).some((m) => m.week_key === wk)
+}
+
+/**
+ * Consecutive weeks this child has memorized a verse, counting back from this
+ * week. If this week isn't marked yet, the streak counts through last week so a
+ * running streak isn't shown as broken mid-week.
+ */
+export function memoryStreakWeeks(childId, date = new Date()) {
+  const keys = new Set(memoryRecords(childId).map((m) => m.week_key))
+  let n = 0
+  const start = keys.has(weekKey(date)) ? 0 : 1
+  for (let i = start; ; i++) {
+    if (keys.has(weekKeyOffset(i, date))) n += 1
+    else break
+  }
+  return n
+}
+
+/** Mark a child as having memorized this week's verse. Idempotent per week. */
+export function markVerseMemorized(childId, byUserId = null, date = new Date()) {
+  const child = getById('users', childId)
+  if (!child || verseMemorizedThisWeek(childId, date)) return null
+  const verse = getVerseForWeek(date)
+  const reward = memoryVerseReward()
+  create('memoryVerses', {
+    child_id: childId,
+    family_id: child.family_id,
+    week_key: weekKey(date),
+    reference: verse.reference,
+    seeds_awarded: reward,
+    marked_by: byUserId,
+  })
+  // Record the streak before badges are checked so the streak badge can see it.
+  const streak = memoryStreakWeeks(childId, date)
+  if (streak > (child.memory_streak_best || 0)) {
+    update('users', childId, { memory_streak_best: streak })
+  }
+  // Narrative-only entry (delta 0): the actual seed award is logged by
+  // awardSeeds below, and Reports/Leaderboard sum every positive seeds_delta —
+  // so counting it here too would double-count the reward.
+  addActivity(
+    child.family_id,
+    childId,
+    'verse_memorized',
+    `${child.full_name} memorized ${verse.reference} 📖${streak > 1 ? ` — ${streak} weeks running!` : ''}`,
+    0
+  )
+  // awardSeeds re-checks badges; when the reward is 0 we still need to check.
+  if (reward > 0) awardSeeds(childId, reward, `Memorized ${verse.reference}`)
+  else checkBadges(childId)
+  notify(childId, 'family', 'Verse memorized! 📖', `You memorized ${verse.reference}${streak > 1 ? ` — ${streak} weeks in a row!` : '!'}`, null)
+  return { streak, reward, reference: verse.reference }
+}
+
+/** Undo this week's mark, clawing back the seeds it granted (floored at zero). */
+export function unmarkVerseMemorized(childId, date = new Date()) {
+  const rec = memoryRecords(childId).find((m) => m.week_key === weekKey(date))
+  if (!rec) return false
+  remove('memoryVerses', rec.id)
+  if (rec.seeds_awarded > 0) {
+    const bal = getById('users', childId)?.seed_balance || 0
+    const dock = Math.min(rec.seeds_awarded, bal)
+    if (dock > 0) deductSeeds(childId, dock, `Un-marked ${rec.reference || 'weekly verse'}`)
+  }
+  return true
+}
+
 // ---------------------------------------------------------------- streaks
 function localDayKey(iso) {
   const d = new Date(iso)
@@ -157,6 +249,7 @@ function childBadgeContext(childId) {
     if (!task.assigned_children || task.assigned_children.length === 0) allChildrenTasks += 1
   })
   const shoutoutsGiven = getAll('shoutouts').filter((s) => s.from_user_id === childId).length
+  const memoryVersesCount = getAll('memoryVerses').filter((m) => m.child_id === childId).length
   return {
     tasksCompleted: approved.length,
     totalSeedsEarned: child?.total_seeds_earned || 0,
@@ -164,6 +257,8 @@ function childBadgeContext(childId) {
     byCategory,
     allChildrenTasks,
     shoutoutsGiven,
+    memoryVersesCount,
+    memoryStreakBest: child?.memory_streak_best || 0,
   }
 }
 
@@ -184,6 +279,12 @@ export function checkBadges(childId) {
       earned = false
     }
     if (earned) {
+      // Guard against re-entrancy: awarding one badge's `bonusSeeds` calls
+      // awardSeeds → checkBadges again, which can grant a later badge before
+      // this (outer) loop reaches it. `owned` was snapshotted at entry and is
+      // now stale, so re-check the live store before creating to avoid a
+      // duplicate badge and a double-paid bonus.
+      if (getAll('badges').some((b) => b.user_id === childId && b.badge_type === def.badge_type)) return
       create('badges', {
         user_id: childId,
         family_id: child.family_id,

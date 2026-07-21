@@ -4,6 +4,7 @@ import { ListChecks, Clock, Gift, Award, Plus, CheckCircle2, BarChart3, UserPlus
 import PageHeader from '@/components/shared/PageHeader'
 import StatCard from '@/components/dashboard/StatCard'
 import BibleVerseCard from '@/components/dashboard/BibleVerseCard'
+import VerseChallenge from '@/components/shared/VerseChallenge'
 import ShoutOutCard from '@/components/dashboard/ShoutOutCard'
 import LeaderboardCard from '@/components/dashboard/LeaderboardCard'
 import ChildHome from '@/components/child/ChildHome'
@@ -66,6 +67,7 @@ export default function Dashboard() {
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <BibleVerseCard />
+          <VerseChallenge familyId={user.family_id} />
           <ShoutOutCard />
         </div>
         <div className="space-y-5">

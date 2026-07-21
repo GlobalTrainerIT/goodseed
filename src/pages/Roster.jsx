@@ -4,6 +4,7 @@ import { Plus, Minus, UserPlus, Trash2, Trophy, Copy, CheckSquare, X, Sparkles, 
 import { Card, Button, Input, Label, Dialog, Badge } from '@/components/ui'
 import PageHeader from '@/components/shared/PageHeader'
 import EmptyState from '@/components/shared/EmptyState'
+import VerseChallenge from '@/components/shared/VerseChallenge'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord, useSettings } from '@/lib/hooks'
 import { create, remove, getById, updateSettings } from '@/lib/db'
@@ -137,6 +138,12 @@ export default function Roster() {
           {daysLeft > 0
             ? `✨ Teams trial — ${daysLeft} day${daysLeft === 1 ? '' : 's'} left, everything unlocked.`
             : '⚠️ Your Teams trial has ended. Your roster is safe — subscribe in Settings to keep awarding points.'}
+        </div>
+      )}
+
+      {!selectMode && kids.length > 0 && (
+        <div className="mb-5">
+          <VerseChallenge familyId={group.id} />
         </div>
       )}
 
