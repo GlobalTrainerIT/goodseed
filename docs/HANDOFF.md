@@ -75,6 +75,14 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   own) + ChildProfile (parent adds), read-only display elsewhere; a shared 💛
   jar strip on the kitchen board (all kids' recent notes with names). Settings:
   enable + reward. Logic in `domain.js` (`addGratitude`/`gratitudeStreakDays`/…).
+- **Bible journey map**: a long-horizon story path (Creation→Noah→…→Empty Tomb,
+  `src/lib/journey.js`, 12 stops) each child travels as lifetime `total_seeds_earned`
+  crosses each stop's threshold. Fully derived (no new collection). Crossing a
+  stop fires an activity + notification + toast (hook in `awardSeeds`; recognition
+  only, no bonus). Read-only `BibleJourney` card on ChildHome + ChildProfile
+  (current stop, road to next, whole trail). Capstone badge `journey_complete`
+  (The Whole Story, at 1600 — mirror the final threshold if you retune journey.js).
+  Settings: enable toggle.
 - **checkBadges re-entrancy fix**: a badge's `bonusSeeds` award re-enters
   checkBadges; the outer loop's stale `owned` set could double-create a later
   badge (exposed when Verse/Armor/Fruit bonus badges fire together). Now guarded
@@ -96,8 +104,7 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
      display; group awards still grow it via the awardSeeds hook); a tree that
      visually blossoms more as fruit counts rise.
    - ✅ **Prayer / gratitude jar** — BUILT (see Major systems).
-   - **Bible journey map**: milestone path (Creation→Noah→Moses→David→Jesus) that
-     unlocks as kids accumulate seeds or memorize verses. Long-horizon goal.
+   - ✅ **Bible journey map** — BUILT (see Major systems).
    - **Family altar (co-op)**: a weekly devotional the whole family completes
      together — reuse the existing Weekly Boss co-op mechanic.
 2. **Skylight-Calendar-style expansion** (user idea). Skylight = wall/counter

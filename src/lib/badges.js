@@ -230,6 +230,16 @@ export const BADGE_DEFS = [
     check: (c) => (c.gratitudeCount || 0) >= 30,
     bonusSeeds: 15,
   },
+
+  // ---- Bible journey capstone (threshold mirrors journey.js final stop) ----
+  {
+    badge_type: 'journey_complete',
+    title: 'The Whole Story',
+    description: 'Traveled the Bible journey to the Empty Tomb — "He is not here; he has risen!" (Matthew 28:6)',
+    icon_emoji: '✝️',
+    check: (c) => (c.totalSeedsEarned || 0) >= 1600,
+    bonusSeeds: 30,
+  },
 ]
 
 export function getBadgeDef(type) {

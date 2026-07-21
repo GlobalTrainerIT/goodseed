@@ -391,6 +391,9 @@ export default function Settings() {
                   />
                 </Row>
               )}
+              <Row title="Bible journey map" desc="A story-milestone path each child travels as their lifetime seeds grow.">
+                <Toggle checked={settings.journeyEnabled !== false} onChange={(v) => updateSettings({ journeyEnabled: v })} />
+              </Row>
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

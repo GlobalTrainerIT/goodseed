@@ -312,6 +312,7 @@ export function seedData() {
     fruitGardenEnabled: true,
     gratitudeEnabled: true,
     gratitudeReward: 1,
+    journeyEnabled: true,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,

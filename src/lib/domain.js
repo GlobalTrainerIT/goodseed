@@ -8,6 +8,7 @@ import { LEVEL_THRESHOLDS } from './constants'
 import { levelRank, crossedRank, FRUIT_OF_SPIRIT } from './faith'
 import { getVerseForWeek, weekKey, weekKeyOffset } from './verses'
 import { ARMOR, ARMOR_SIZE, armorSuitBonus } from './armor'
+import { JOURNEY_STOPS } from './journey'
 import { toast } from './toast'
 import { clamp } from './utils'
 
@@ -80,6 +81,7 @@ export function notify(userId, type, title, message, link_to = null) {
 export function awardSeeds(childId, amount, reason, byUserId) {
   const child = getById('users', childId)
   if (!child || amount <= 0) return
+  const beforeTotal = child.total_seeds_earned || 0
   update('users', childId, (c) => ({
     seed_balance: (c.seed_balance || 0) + amount,
     total_seeds_earned: (c.total_seeds_earned || 0) + amount,
@@ -95,6 +97,17 @@ export function awardSeeds(childId, amount, reason, byUserId) {
   const fruit = reason ? FRUIT_OF_SPIRIT.find((f) => f.label === reason) : null
   if (fruit) {
     create('fruitEarned', { child_id: childId, family_id: child.family_id, fruit_id: fruit.id, seeds: amount })
+  }
+  // Bible journey: if this award pushes lifetime earnings past a story
+  // milestone, celebrate the new stop (recognition only — no bonus).
+  if (getSettings().journeyEnabled !== false) {
+    const afterTotal = beforeTotal + amount
+    const reached = JOURNEY_STOPS.filter((s) => s.threshold > beforeTotal && s.threshold <= afterTotal).pop()
+    if (reached) {
+      addActivity(child.family_id, childId, 'journey', `${child.full_name} reached ${reached.name} on their Bible journey ${reached.emoji}`, 0)
+      notify(childId, 'family', `Bible journey: ${reached.name} ${reached.emoji}`, reached.blurb, '/ChildProfile/' + childId)
+      toast({ title: `${reached.emoji} ${reached.name}!`, message: `${child.full_name} reached a new stop on their Bible journey!`, emoji: reached.emoji })
+    }
   }
   checkBadges(childId)
 }
@@ -392,6 +405,10 @@ export function awardFruit(childId, fruitId, byUserId = null) {
 
 export function gratitudeEnabled() {
   return getSettings().gratitudeEnabled !== false
+}
+
+export function journeyEnabled() {
+  return getSettings().journeyEnabled !== false
 }
 
 /** Seeds granted for the first jar note of a day (configurable in Settings). */
