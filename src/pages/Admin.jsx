@@ -33,6 +33,23 @@ async function adminCall(key, body) {
   return data
 }
 
+// Owner-only Stripe invoicing for Organizations (separate edge function so it
+// uses a dedicated Stripe key, never the live checkout key).
+async function orgInvoiceCall(key, body) {
+  await ensureSession()
+  const { data, error } = await supabase.functions.invoke('org-invoice', {
+    body,
+    headers: { 'x-admin-key': key },
+  })
+  if (error) {
+    let msg = error.message
+    try { const ctx = await error.context?.json(); if (ctx?.error) msg = ctx.error } catch { /* keep */ }
+    throw new Error(msg)
+  }
+  if (data?.error) throw new Error(data.error)
+  return data
+}
+
 export default function Admin() {
   const [key, setKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) || '')
   const [draft, setDraft] = useState('')
@@ -170,6 +187,11 @@ export default function Admin() {
               try { await adminCall(key, { action: 'revoke_org', org_id: org.id }); await refresh() }
               catch (e) { setError(String(e.message || e)); setBusy(false) }
             }}
+            onInvoice={async (org, opts) => {
+              const r = await orgInvoiceCall(key, { action: 'create_invoice', org_id: org.id, contact_email: opts.email, children: opts.children, period: opts.period })
+              await refresh()
+              return r
+            }}
           />
         </Section>
 
@@ -216,11 +238,12 @@ export default function Admin() {
 
 // Organizations: an invoiced church/school/YMCA deal. You create it here, hand
 // the code to their administrator, and every leader who enters it is covered.
-function OrgTable({ orgs, onCreate, onRevoke }) {
+function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
   const [name, setName] = useState('')
   const [days, setDays] = useState('365')
   const [cap, setCap] = useState('')
   const [newCode, setNewCode] = useState(null)
+  const [billing, setBilling] = useState(null) // org being invoiced
 
   async function create() {
     if (!name.trim()) return
@@ -296,13 +319,27 @@ function OrgTable({ orgs, onCreate, onRevoke }) {
                       : o.expired ? <Badge className="bg-red-100 text-red-700">expired</Badge>
                       : <Badge variant="green">active</Badge>}
                   </td>
-                  <td className="px-4 py-2.5 text-gray-400">{new Date(o.active_until).toLocaleDateString()}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    {!o.revoked && (
-                      <Button size="sm" variant="outline" className="border-red-200 text-red-600" onClick={() => onRevoke(o)}>
-                        <XCircle className="h-3.5 w-3.5" /> End
-                      </Button>
+                  <td className="px-4 py-2.5 text-gray-400">
+                    {new Date(o.active_until).toLocaleDateString()}
+                    {o.billing?.last_invoice_id && (
+                      <a href={o.billing.last_invoice_url} target="_blank" rel="noreferrer" className="ml-2 text-xs font-semibold text-seed-700 hover:underline dark:text-seed-400">
+                        invoice: {o.billing.last_status}
+                      </a>
                     )}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex justify-end gap-1.5">
+                      {!o.revoked && (
+                        <Button size="sm" variant="secondary" onClick={() => setBilling(o)}>
+                          💳 Bill
+                        </Button>
+                      )}
+                      {!o.revoked && (
+                        <Button size="sm" variant="outline" className="border-red-200 text-red-600" onClick={() => onRevoke(o)}>
+                          <XCircle className="h-3.5 w-3.5" /> End
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -310,7 +347,93 @@ function OrgTable({ orgs, onCreate, onRevoke }) {
           </table>
         </Card>
       )}
+
+      <BillOrgDialog org={billing} onInvoice={onInvoice} onClose={() => setBilling(null)} />
     </>
+  )
+}
+
+// Create a Stripe (ACH-enabled) invoice for an organization. Pricing is fixed
+// server-side ($2/child/mo, $20/child/yr); this just collects who/how-many.
+function BillOrgDialog({ org, onInvoice, onClose }) {
+  const [email, setEmail] = useState('')
+  const [children, setChildren] = useState('')
+  const [period, setPeriod] = useState('annual')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (org) { setEmail(org.contact_email || ''); setChildren(String(org.billing?.children || '')); setPeriod(org.billing?.period || 'annual'); setResult(null); setErr('') }
+  }, [org])
+
+  if (!org) return null
+  const n = Math.max(0, parseInt(children, 10) || 0)
+  const rate = period === 'annual' ? 20 : 2
+  const total = n * rate
+
+  async function submit() {
+    setErr(''); setBusy(true)
+    try {
+      const r = await onInvoice(org, { email: email.trim(), children: n, period })
+      setResult(r)
+    } catch (e) { setErr(String(e.message || e)) }
+    setBusy(false)
+  }
+
+  return (
+    <Dialog
+      open={!!org}
+      onClose={onClose}
+      title={`Invoice ${org.name}`}
+      description="Creates a Stripe invoice payable by ACH (or card). Test-mode until you set a live key."
+      footer={
+        result ? <Button onClick={onClose}>Done</Button> : (
+          <>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={submit} disabled={busy || !email.includes('@') || n < 1}>{busy ? 'Creating…' : `Create invoice · $${total}`}</Button>
+          </>
+        )
+      }
+    >
+      {result ? (
+        <div className="space-y-3">
+          <p className="rounded-lg bg-seed-50 p-3 text-sm text-seed-800 dark:bg-seed-900/30 dark:text-seed-200">
+            ✅ Invoice created ({result.status}) for <b>${(result.amount / 100).toFixed(2)}</b>.
+          </p>
+          {result.hosted_invoice_url && (
+            <a href={result.hosted_invoice_url} target="_blank" rel="noreferrer" className="block rounded-lg border border-gray-200 p-3 text-sm font-semibold text-seed-700 hover:bg-gray-50 dark:border-gray-800 dark:text-seed-400">
+              Open hosted invoice ↗
+            </a>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <Label>Billing email</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@church.org" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Number of children</Label>
+              <Input type="number" min="1" value={children} onChange={(e) => setChildren(e.target.value)} placeholder="e.g. 80" />
+            </div>
+            <div>
+              <Label>Billing period</Label>
+              <div className="mt-1 flex gap-2">
+                {[['annual', '$20/yr'], ['monthly', '$2/mo']].map(([id, lbl]) => (
+                  <button key={id} onClick={() => setPeriod(id)} className={`flex-1 rounded-lg px-2 py-2 text-sm font-semibold ${period === id ? 'bg-seed-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800'}`}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            {n > 0 ? <>{n} children × ${rate}/{period === 'annual' ? 'year' : 'month'} = <b>${total}</b>{period === 'annual' ? ' (2 months free)' : ''}</> : 'Enter a child count to see the total.'}
+          </p>
+          {err && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-300">{err}</p>}
+        </div>
+      )}
+    </Dialog>
   )
 }
 

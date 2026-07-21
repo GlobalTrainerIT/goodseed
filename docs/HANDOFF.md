@@ -37,6 +37,19 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   page (administrator roll-up), Owner Console `/Admin` create/revoke orgs.
 - **Owner Console** `/Admin` (owner admin key `gsk_...`, in the user's password
   manager): MRR, families/groups/orgs, comp/grant, create orgs.
+- **Org billing (Stripe ACH invoicing)**: Owner Console `/Admin` → each org has a
+  💳 **Bill** button → dialog (billing email, child count, monthly/annual) →
+  `org-invoice` edge fn creates a Stripe invoice payable by **ACH** (or card),
+  emails it, stores `billing` on the org (shown as an "invoice: <status>" link).
+  Pricing is server-authoritative: **$2/child/mo, $20/child/yr (2 months free)**.
+  Org table gained `contact_email`, `stripe_customer_id`, `billing jsonb` columns.
+  **SETUP NEEDED before it works**: (1) in Supabase → Edge Functions → Secrets,
+  set `STRIPE_INVOICE_SECRET_KEY` to a Stripe **test** key (sk_test_…) — it's a
+  DEDICATED key, never the live checkout key, so testing can't touch live
+  Plus/Teams; swap to sk_live_… to go live. (2) Enable **ACH Direct Debit** in
+  the Stripe dashboard (Settings → Payment methods) so the hosted invoice offers
+  bank payment. Deployed + auth-gate verified (401 on bad key); the Stripe path
+  is verifiable once the test key is set.
 - **Billing**: Stripe live. create-checkout (plans: plus, teams_monthly
   price_1Ttg1ZC3XE1lnObG71CATYSX, teams_yearly price_1Ttp2ZC3XE1lnObGwWOxIN0e),
   stripe-webhook, create-portal. Old $99 price retired but still mapped.
