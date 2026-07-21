@@ -5,7 +5,7 @@
 import { getAll, getById, create, update, remove, getSettings, updateSettings } from './db'
 import { BADGE_DEFS } from './badges'
 import { LEVEL_THRESHOLDS } from './constants'
-import { levelRank, crossedRank } from './faith'
+import { levelRank, crossedRank, FRUIT_OF_SPIRIT } from './faith'
 import { getVerseForWeek, weekKey, weekKeyOffset } from './verses'
 import { ARMOR, ARMOR_SIZE, armorSuitBonus } from './armor'
 import { toast } from './toast'
@@ -89,6 +89,13 @@ export function awardSeeds(childId, amount, reason, byUserId) {
   // progression isn't trivially fast (a one-off 50-seed award won't leap levels).
   addXp(childId, amount * 2)
   notify(childId, 'family', `+${amount} ${seedWord(amount)} 🌱`, reason || 'Seeds awarded!', null)
+  // Fruit of the Spirit garden: when an award names a Fruit (from the behavior
+  // pack coaches use, or the garden picker), grow that fruit on the child's
+  // tree. Recorded before checkBadges so the garden badges see it this pass.
+  const fruit = reason ? FRUIT_OF_SPIRIT.find((f) => f.label === reason) : null
+  if (fruit) {
+    create('fruitEarned', { child_id: childId, family_id: child.family_id, fruit_id: fruit.id, seeds: amount })
+  }
   checkBadges(childId)
 }
 
@@ -345,6 +352,38 @@ export function undoArmorToday(childId, date = new Date()) {
   return true
 }
 
+// ------------------------------------------------------- fruit of the spirit
+// The nine Fruits of the Spirit (Galatians 5:22–23) as a collectible garden.
+// Awarding a Fruit-named behavior grows that fruit (see the hook in awardSeeds);
+// collecting all nine flourishes the child's tree. `awardFruit` is the direct
+// path used by the garden picker.
+
+export function fruitGardenEnabled() {
+  return getSettings().fruitGardenEnabled !== false
+}
+
+/** How many times each fruit has been shown, keyed by fruit id. */
+export function fruitCounts(childId) {
+  const counts = {}
+  getAll('fruitEarned')
+    .filter((f) => f.child_id === childId)
+    .forEach((f) => { counts[f.fruit_id] = (counts[f.fruit_id] || 0) + 1 })
+  return counts
+}
+
+/** Number of distinct fruits a child has shown (0–9). */
+export function distinctFruitsEarned(childId) {
+  return new Set(getAll('fruitEarned').filter((f) => f.child_id === childId).map((f) => f.fruit_id)).size
+}
+
+/** Award a single Fruit of the Spirit to a child (grows the garden + seeds). */
+export function awardFruit(childId, fruitId, byUserId = null) {
+  const fruit = FRUIT_OF_SPIRIT.find((f) => f.id === fruitId)
+  if (!fruit) return null
+  awardSeeds(childId, fruit.amount, fruit.label, byUserId) // hook records the fruit
+  return fruit
+}
+
 // ---------------------------------------------------------------- streaks
 function localDayKey(iso) {
   const d = new Date(iso)
@@ -406,6 +445,7 @@ function childBadgeContext(childId) {
     armorPiecesCount: armorConfirmed,
     armorSuitsCompleted: Math.floor(armorConfirmed / ARMOR_SIZE),
     armorStreakBest: child?.armor_streak_best || 0,
+    distinctFruits: new Set(getAll('fruitEarned').filter((f) => f.child_id === childId).map((f) => f.fruit_id)).size,
   }
 }
 

@@ -9,6 +9,7 @@ import StreakDisplay from '@/components/gamification/StreakDisplay'
 import LevelProgress from '@/components/gamification/LevelProgress'
 import BadgeGrid from '@/components/gamification/BadgeGrid'
 import ActivityFeed from '@/components/family/ActivityFeed'
+import FruitGarden from '@/components/shared/FruitGarden'
 import AwardSeedsDialog from '@/components/family/AwardSeedsDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { useRecord, useCollection, useCurrentUser } from '@/lib/hooks'
@@ -77,6 +78,10 @@ export default function ChildProfile() {
           <div className="col-span-2 sm:col-span-1"><LevelProgress xp={child.xp || 0} /></div>
         </div>
       </Card>
+
+      <div className="mb-5">
+        <FruitGarden childId={child.id} interactive={isParent} />
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="p-5">

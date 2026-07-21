@@ -186,6 +186,24 @@ export const BADGE_DEFS = [
     check: (c) => (c.armorStreakBest || 0) >= 7,
     bonusSeeds: 10,
   },
+
+  // ---- Fruit of the Spirit garden -----------------------------------------
+  {
+    badge_type: 'fruit_five',
+    title: 'Good Fruit',
+    description: 'Showed five Fruits of the Spirit — "By their fruit you will recognize them." (Matthew 7:16)',
+    icon_emoji: '🍏',
+    check: (c) => (c.distinctFruits || 0) >= 5,
+    bonusSeeds: 8,
+  },
+  {
+    badge_type: 'fruit_full',
+    title: 'Flourishing Tree',
+    description: 'Showed all nine Fruits of the Spirit — "love, joy, peace, patience, kindness…" (Galatians 5:22-23)',
+    icon_emoji: '🌳',
+    check: (c) => (c.distinctFruits || 0) >= 9,
+    bonusSeeds: 20,
+  },
 ]
 
 export function getBadgeDef(type) {

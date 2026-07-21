@@ -59,10 +59,18 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   Role-aware `ArmorOfGod` card: child self-view in ChildHome, parent
   confirm-panel on Dashboard; 🛡️ pill on the kitchen board. Settings: enable +
   per-piece reward. Logic in `domain.js` (`kidMarkArmor`/`confirmArmor`/…).
+- **Fruit of the Spirit garden**: the 9 Fruits (Galatians 5:22–23, already in
+  `faith.js`) as a per-child collectible. Awarding a Fruit-named behavior grows
+  that fruit — hooked in `awardSeeds` (matches `reason` to a Fruit label), so the
+  coach Fruit behavior-pack presets grow it for free; the garden picker
+  (`awardFruit`) is the direct path. `fruitEarned` collection (syncs). 2 badges
+  (Good Fruit 5, Flourishing Tree 9). `FruitGarden` card: interactive on
+  ChildProfile (parent taps), read-only on ChildHome; 🌳 pill on the kitchen
+  board. Settings: enable toggle. Logic/counts in `domain.js`.
 - **checkBadges re-entrancy fix**: a badge's `bonusSeeds` award re-enters
   checkBadges; the outer loop's stale `owned` set could double-create a later
-  badge (exposed when Verse/Armor bonus badges fire together). Now guarded with a
-  live-store existence check before create.
+  badge (exposed when Verse/Armor/Fruit bonus badges fire together). Now guarded
+  with a live-store existence check before create.
 - **Compliance/pages**: /privacy (COPPA section), /terms, /parent-promise,
   /for-teams sales page. Internal docs in `docs/`.
 
@@ -75,10 +83,10 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
 1b. ✅ **Armor of God daily challenge** — BUILT (see Major systems). User
    greenlit the whole faith-gamification direction ("I like all these ideas").
    Backlog of the ideas they liked, in fit order:
-   - **Fruit of the Spirit garden** (strongest next — reuses most): faith.js
-     already has the 9 Fruits as behaviors + a growing-tree rank arc (Psalm 1:3).
-     Make it visual — each Fruit behavior earned grows that fruit on the child's
-     tree; collect all 9 → flourishing tree + badge.
+   - ✅ **Fruit of the Spirit garden** — BUILT (see Major systems). Follow-ons:
+     surface the garden on the coach/group side too (currently family-only
+     display; group awards still grow it via the awardSeeds hook); a tree that
+     visually blossoms more as fruit counts rise.
    - **Prayer / gratitude streak**: daily "who did you pray for / what are you
      thankful for" tap; builds a gratitude jar on the kitchen board. Pairs with
      Armor's day-7 Prayer piece.

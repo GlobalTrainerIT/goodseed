@@ -373,6 +373,9 @@ export default function Settings() {
                   />
                 </Row>
               )}
+              <Row title="Fruit of the Spirit garden" desc="A nine-fruit collectible on each child's profile; awarding a Fruit behavior grows it.">
+                <Toggle checked={settings.fruitGardenEnabled !== false} onChange={(v) => updateSettings({ fruitGardenEnabled: v })} />
+              </Row>
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

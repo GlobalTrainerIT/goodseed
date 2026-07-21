@@ -7,6 +7,7 @@ import ChildTaskCard from './ChildTaskCard'
 import EmptyState from '@/components/shared/EmptyState'
 import SeedPackReveal from '@/components/gamification/SeedPackReveal'
 import ArmorOfGod from '@/components/shared/ArmorOfGod'
+import FruitGarden from '@/components/shared/FruitGarden'
 import { levelRank } from '@/lib/faith'
 import { useCollection } from '@/lib/hooks'
 import { taskAppliesTo, seedLabel } from '@/lib/domain'
@@ -65,6 +66,8 @@ export default function ChildHome({ child }) {
       </Card>
 
       <ArmorOfGod familyId={child.family_id} />
+
+      <FruitGarden childId={child.id} />
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">
