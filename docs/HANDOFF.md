@@ -104,10 +104,23 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   cross-family hop depends on the `group-link` edge fn returning `event_date` on
   announcement rows (verify/ensure it passes the field through). Only locally-
   testable surfaces (same-family add→agenda→board, group Board+Display) verified.
-- **checkBadges re-entrancy fix**: a badge's `bonusSeeds` award re-enters
-  checkBadges; the outer loop's stale `owned` set could double-create a later
-  badge (exposed when Verse/Armor/Fruit bonus badges fire together). Now guarded
-  with a live-store existence check before create.
+- **Recurring events + month Calendar**: events can `repeat: 'weekly'`
+  (`expandInRange` in events.js unrolls occurrences); shared `AddEventDialog` has
+  a "repeat weekly" box (family agenda + coach Board). New `/Calendar` page
+  (`src/pages/Calendar.jsx`) — a month grid of family + followed-group events,
+  parent-only, in PARENT_NAV; the Dashboard agenda links to it.
+- **Faith Journey stats panel**: `FaithStats` card on ChildProfile aggregates
+  verses/armor/fruits/gratitude/journey/altar (helper `faithStats` in domain);
+  tiles respect each feature's enable setting.
+- **Settings "Faith & Devotion" card**: the 6 faith toggles + rewards moved out
+  of the Gamification card into their own section.
+- **Fixes**: (1) `checkBadges` re-entrancy — a badge's `bonusSeeds` award
+  re-enters checkBadges and the stale `owned` set could double-create a later
+  badge; now guarded with a live-store existence check before create. (2)
+  `KidCodeRow` setState-in-render — `ensureKidCode` wrote to the store during
+  render; now deferred to a `useEffect`. (3) `group-link` edge fn now returns
+  `event_date`/`event_time` on announcements (SOURCE fixed; **deploy pending** —
+  see task/gaps).
 - **Compliance/pages**: /privacy (COPPA section), /terms, /parent-promise,
   /for-teams sales page. Internal docs in `docs/`.
 
@@ -129,11 +142,12 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    - ✅ **Family altar (co-op)** — BUILT (see Major systems). The faith set is
      now complete: Verse of the Week, Armor of God, Fruit garden, Gratitude jar,
      Bible journey, Family Altar.
-2. ✅ **Skylight-Calendar slice** — BUILT (dated events + agendas; see Major
-   systems). Follow-ons: confirm the `group-link` edge fn passes `event_date`
-   (see task) so coach events truly reach families; recurring events; a
-   meal-plan / shared to-do lane; an "events" nav entry or a dedicated /Calendar
-   month view if wanted (current slice is agenda-style, not a month grid).
+2. ✅ **Skylight-Calendar slice** — BUILT: dated events, agendas, recurring
+   (weekly) events, and a month-grid `/Calendar`. **DEPLOY PENDING**: the
+   `group-link` edge fn source now returns `event_date`/`event_time`, but it must
+   be deployed to Supabase (matching its current `verify_jwt=false`) for coach
+   events to reach families cross-family — see the spawned task. Follow-ons: a
+   meal-plan / shared to-do lane; month-view event click-to-edit.
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,

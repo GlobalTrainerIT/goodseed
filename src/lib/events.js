@@ -1,4 +1,4 @@
-import { parseISO, isValid, format, startOfDay, differenceInCalendarDays } from 'date-fns'
+import { parseISO, isValid, format, startOfDay, differenceInCalendarDays, addDays, isAfter, isBefore } from 'date-fns'
 
 // The family calendar rides the announcements layer: an announcement with an
 // `event_date` ('YYYY-MM-DD') is a dated event. `event_time` is a free label
@@ -16,17 +16,38 @@ export function eventDate(a) {
   return isValid(d) ? d : null
 }
 
-/** Dated events within the next `days`, soonest first. Undated notices excluded. */
+/**
+ * Expand a list into concrete event occurrences within [from, to] (inclusive),
+ * unrolling weekly-recurring events (`repeat: 'weekly'`). Each occurrence is a
+ * shallow copy carrying its own `event_date`.
+ */
+export function expandInRange(list, from, to) {
+  const fromD = startOfDay(from)
+  const toD = startOfDay(to)
+  const out = []
+  list.forEach((a) => {
+    const base = eventDate(a)
+    if (!base) return
+    if (a.repeat === 'weekly') {
+      let d = base
+      if (isBefore(d, fromD)) {
+        const weeks = Math.ceil(differenceInCalendarDays(fromD, d) / 7)
+        d = addDays(base, weeks * 7)
+      }
+      while (!isAfter(d, toD)) {
+        if (!isBefore(d, fromD)) out.push({ ...a, event_date: format(d, 'yyyy-MM-dd'), _occurrence: true })
+        d = addDays(d, 7)
+      }
+    } else if (!isBefore(base, fromD) && !isAfter(base, toD)) {
+      out.push(a)
+    }
+  })
+  return out.sort((x, y) => x.event_date.localeCompare(y.event_date) || (x.event_time || '').localeCompare(y.event_time || ''))
+}
+
+/** Dated events within the next `days`, soonest first (recurrences expanded). */
 export function upcomingEvents(list, { days = 21, now = new Date() } = {}) {
-  const today = startOfDay(now)
-  return list
-    .filter((a) => {
-      const d = eventDate(a)
-      if (!d) return false
-      const diff = differenceInCalendarDays(d, today)
-      return diff >= 0 && diff <= days
-    })
-    .sort((x, y) => x.event_date.localeCompare(y.event_date) || (x.event_time || '').localeCompare(y.event_time || ''))
+  return expandInRange(list, now, addDays(startOfDay(now), days))
 }
 
 /** Group a sorted event list by day: [{ key, date, label, events }]. */

@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CalendarDays, Plus, Trash2, Clock } from 'lucide-react'
-import { Card, Button, Input, Textarea, Label, Dialog, Badge } from '@/components/ui'
-import { useCurrentUser, useCollection } from '@/lib/hooks'
+import { Card, Button, Badge } from '@/components/ui'
+import { useCollection } from '@/lib/hooks'
 import { useFollowedData } from '@/lib/groupLink'
-import { create, remove } from '@/lib/db'
-import { upcomingEvents, groupByDay, todayValue } from '@/lib/events'
+import { remove } from '@/lib/db'
+import { upcomingEvents, groupByDay } from '@/lib/events'
+import AddEventDialog from '@/components/shared/AddEventDialog'
 import { toast } from '@/lib/toast'
 
 // The family command-center agenda: upcoming dated events for this family, plus
@@ -29,9 +31,12 @@ export default function UpcomingEvents({ familyId, canAdd = false, days = 21 }) 
           <CalendarDays className="h-5 w-5" />
           <span className="text-sm font-bold uppercase tracking-wide">This Week &amp; Ahead</span>
         </div>
-        {canAdd && (
-          <Button size="sm" variant="secondary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Add event</Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Link to="/Calendar" className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Full calendar →</Link>
+          {canAdd && (
+            <Button size="sm" variant="secondary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Add event</Button>
+          )}
+        </div>
       </div>
 
       {days_.length === 0 ? (
@@ -69,6 +74,7 @@ function EventRow({ event, canDelete }) {
               <Clock className="h-3 w-3" /> {event.event_time}
             </span>
           )}
+          {event.repeat === 'weekly' && <Badge variant="gray">↻ weekly</Badge>}
           {event._external && <Badge variant="blue">{event.group}</Badge>}
         </div>
         {event.message && <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{event.message}</p>}
@@ -83,66 +89,5 @@ function EventRow({ event, canDelete }) {
         </button>
       )}
     </div>
-  )
-}
-
-function AddEventDialog({ open, familyId, onClose }) {
-  const user = useCurrentUser()
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState(todayValue())
-  const [time, setTime] = useState('')
-  const [notes, setNotes] = useState('')
-
-  function save() {
-    if (!title.trim() || !date) return
-    create('announcements', {
-      family_id: familyId,
-      title: title.trim(),
-      message: notes.trim(),
-      event_date: date,
-      event_time: time.trim(),
-      is_pinned: false,
-      created_by: user?.id,
-      created_at: new Date().toISOString(),
-    })
-    toast({ title: 'Event added!', message: 'It shows on your dashboard and kitchen board.', emoji: '📅' })
-    setTitle(''); setTime(''); setNotes(''); setDate(todayValue())
-    onClose()
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title="Add a family event"
-      description="Games, appointments, birthdays — anything to keep on the family calendar."
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} disabled={!title.trim() || !date}>Add event</Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <div>
-          <Label>Event</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Soccer game" autoFocus />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div>
-            <Label>Time (optional)</Label>
-            <Input value={time} onChange={(e) => setTime(e.target.value)} placeholder="e.g. 9:00 AM" />
-          </div>
-        </div>
-        <div>
-          <Label>Notes (optional)</Label>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="e.g. Wear the blue jersey. Snacks: us." />
-        </div>
-      </div>
-    </Dialog>
   )
 }

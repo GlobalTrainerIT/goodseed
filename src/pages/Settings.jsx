@@ -343,72 +343,6 @@ export default function Settings() {
               <Row title="Enable Seed Packs" desc="Children earn packs every 10 tasks or at streak milestones.">
                 <Toggle checked={settings.enableSeedPacks} onChange={(v) => updateSettings({ enableSeedPacks: v })} />
               </Row>
-              <Row title="Verse of the Week" desc="Run a weekly Scripture-memory challenge; mark a child memorized to award points.">
-                <Toggle checked={settings.memoryVerseEnabled !== false} onChange={(v) => updateSettings({ memoryVerseEnabled: v })} />
-              </Row>
-              {settings.memoryVerseEnabled !== false && (
-                <Row title="Verse reward" desc="Points awarded when a child memorizes the week's verse.">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    className="w-24"
-                    value={settings.memoryVerseReward ?? 5}
-                    onChange={(e) => updateSettings({ memoryVerseReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
-                  />
-                </Row>
-              )}
-              <Row title="Armor of God" desc="Daily devotion challenge: kids put on a piece of armor each day; you confirm it.">
-                <Toggle checked={settings.armorEnabled !== false} onChange={(v) => updateSettings({ armorEnabled: v })} />
-              </Row>
-              {settings.armorEnabled !== false && (
-                <Row title="Armor piece reward" desc="Points awarded for each daily armor piece you confirm.">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    className="w-24"
-                    value={settings.armorPieceReward ?? 2}
-                    onChange={(e) => updateSettings({ armorPieceReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
-                  />
-                </Row>
-              )}
-              <Row title="Fruit of the Spirit garden" desc="A nine-fruit collectible on each child's profile; awarding a Fruit behavior grows it.">
-                <Toggle checked={settings.fruitGardenEnabled !== false} onChange={(v) => updateSettings({ fruitGardenEnabled: v })} />
-              </Row>
-              <Row title="Gratitude jar" desc="A daily thankful/prayer note that builds a streak and shows on the kitchen board.">
-                <Toggle checked={settings.gratitudeEnabled !== false} onChange={(v) => updateSettings({ gratitudeEnabled: v })} />
-              </Row>
-              {settings.gratitudeEnabled !== false && (
-                <Row title="Gratitude reward" desc="Points for the first jar note each day.">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    className="w-24"
-                    value={settings.gratitudeReward ?? 1}
-                    onChange={(e) => updateSettings({ gratitudeReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
-                  />
-                </Row>
-              )}
-              <Row title="Bible journey map" desc="A story-milestone path each child travels as their lifetime seeds grow.">
-                <Toggle checked={settings.journeyEnabled !== false} onChange={(v) => updateSettings({ journeyEnabled: v })} />
-              </Row>
-              <Row title="Family Altar" desc="A weekly whole-family devotional; finishing every step rewards every child.">
-                <Toggle checked={settings.altarEnabled !== false} onChange={(v) => updateSettings({ altarEnabled: v })} />
-              </Row>
-              {settings.altarEnabled !== false && (
-                <Row title="Altar reward" desc="Points each child earns when the family completes the week's altar.">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    className="w-24"
-                    value={settings.altarReward ?? 5}
-                    onChange={(e) => updateSettings({ altarReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
-                  />
-                </Row>
-              )}
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"
@@ -426,6 +360,56 @@ export default function Settings() {
                   <Toggle checked={settings.parentPinEnabled} onChange={togglePin} />
                 </div>
               </Row>
+            </div>
+          </Card>
+
+          {/* Faith & Devotion */}
+          <Card className="mb-5 p-5">
+            <h3 className="mb-1 font-bold text-gray-900 dark:text-gray-100">🕊️ Faith &amp; Devotion</h3>
+            <p className="mb-2 text-xs text-gray-400">Turn any of these on or off, and set what each is worth.</p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              <Row title="Verse of the Week" desc="A weekly Scripture-memory challenge; mark a child memorized to award points.">
+                <Toggle checked={settings.memoryVerseEnabled !== false} onChange={(v) => updateSettings({ memoryVerseEnabled: v })} />
+              </Row>
+              {settings.memoryVerseEnabled !== false && (
+                <Row title="Verse reward" desc="Points awarded when a child memorizes the week's verse.">
+                  <Input type="number" min="0" max="100" className="w-24" value={settings.memoryVerseReward ?? 5}
+                    onChange={(e) => updateSettings({ memoryVerseReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })} />
+                </Row>
+              )}
+              <Row title="Armor of God" desc="Daily devotion: kids put on a piece of armor each day; you confirm it.">
+                <Toggle checked={settings.armorEnabled !== false} onChange={(v) => updateSettings({ armorEnabled: v })} />
+              </Row>
+              {settings.armorEnabled !== false && (
+                <Row title="Armor piece reward" desc="Points awarded for each daily armor piece you confirm.">
+                  <Input type="number" min="0" max="100" className="w-24" value={settings.armorPieceReward ?? 2}
+                    onChange={(e) => updateSettings({ armorPieceReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })} />
+                </Row>
+              )}
+              <Row title="Fruit of the Spirit garden" desc="A nine-fruit collectible on each child's profile; awarding a Fruit behavior grows it.">
+                <Toggle checked={settings.fruitGardenEnabled !== false} onChange={(v) => updateSettings({ fruitGardenEnabled: v })} />
+              </Row>
+              <Row title="Gratitude jar" desc="A daily thankful/prayer note that builds a streak and shows on the kitchen board.">
+                <Toggle checked={settings.gratitudeEnabled !== false} onChange={(v) => updateSettings({ gratitudeEnabled: v })} />
+              </Row>
+              {settings.gratitudeEnabled !== false && (
+                <Row title="Gratitude reward" desc="Points for the first jar note each day.">
+                  <Input type="number" min="0" max="100" className="w-24" value={settings.gratitudeReward ?? 1}
+                    onChange={(e) => updateSettings({ gratitudeReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })} />
+                </Row>
+              )}
+              <Row title="Bible journey map" desc="A story-milestone path each child travels as their lifetime seeds grow.">
+                <Toggle checked={settings.journeyEnabled !== false} onChange={(v) => updateSettings({ journeyEnabled: v })} />
+              </Row>
+              <Row title="Family Altar" desc="A weekly whole-family devotional; finishing every step rewards every child.">
+                <Toggle checked={settings.altarEnabled !== false} onChange={(v) => updateSettings({ altarEnabled: v })} />
+              </Row>
+              {settings.altarEnabled !== false && (
+                <Row title="Altar reward" desc="Points each child earns when the family completes the week's altar.">
+                  <Input type="number" min="0" max="100" className="w-24" value={settings.altarReward ?? 5}
+                    onChange={(e) => updateSettings({ altarReward: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })} />
+                </Row>
+              )}
             </div>
           </Card>
 

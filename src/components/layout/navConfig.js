@@ -13,12 +13,14 @@ import {
   ClipboardList,
   Megaphone,
   Wrench,
+  CalendarDays,
 } from 'lucide-react'
 
 export const PARENT_NAV = [
   { label: 'Dashboard', to: '/Dashboard', icon: LayoutDashboard },
   { label: 'Tasks', to: '/Tasks', icon: ListChecks },
   { label: 'Rewards', to: '/Rewards', icon: Gift },
+  { label: 'Calendar', to: '/Calendar', icon: CalendarDays },
   { label: 'Missions', to: '/Missions', icon: Rocket },
   { label: 'Family', to: '/Family', icon: Users },
   { label: 'Reports', to: '/Reports', icon: BarChart3 },

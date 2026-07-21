@@ -22,6 +22,7 @@ export default function Board() {
   const [message, setMessage] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
+  const [weekly, setWeekly] = useState(false)
 
   const all = useCollection('announcements', (list) => list.filter((a) => a.family_id === user?.family_id))
   const events = groupByDay(upcomingEvents(all, { days: 60 }))
@@ -38,6 +39,7 @@ export default function Board() {
       message: message.trim(),
       event_date: eventDate || null,
       event_time: eventDate ? eventTime.trim() : '',
+      repeat: eventDate && weekly ? 'weekly' : 'none',
       created_by: user.id,
       is_pinned: false,
       created_at: new Date().toISOString(),
@@ -47,6 +49,7 @@ export default function Board() {
     setMessage('')
     setEventDate('')
     setEventTime('')
+    setWeekly(false)
   }
 
   if (!group) return null
@@ -82,6 +85,12 @@ export default function Board() {
               <Input value={eventTime} onChange={(e) => setEventTime(e.target.value)} placeholder="e.g. 9:00 AM" disabled={!eventDate} />
             </div>
           </div>
+          {eventDate && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <input type="checkbox" checked={weekly} onChange={(e) => setWeekly(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-seed-600" />
+              Repeat every week (e.g. weekly practice)
+            </label>
+          )}
           <Button type="submit" disabled={!title.trim()}>
             {eventDate ? <><CalendarDays className="h-4 w-4" /> Post event</> : <><Send className="h-4 w-4" /> Post to the board</>}
           </Button>

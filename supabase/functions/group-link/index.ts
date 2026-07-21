@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       .map((a) => a.data as Record<string, unknown>)
       .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || String(b.created_at).localeCompare(String(a.created_at)))
       .slice(0, 10)
-      .map((a) => ({ title: a.title, message: a.message, is_pinned: !!a.is_pinned, created_at: a.created_at }))
+      .map((a) => ({ title: a.title, message: a.message, is_pinned: !!a.is_pinned, created_at: a.created_at, event_date: a.event_date ?? null, event_time: a.event_time ?? null }))
 
     return json({
       group_name: (famRes.data?.data as Record<string, unknown>)?.name || 'Group',

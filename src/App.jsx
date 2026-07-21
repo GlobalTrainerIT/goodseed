@@ -27,6 +27,7 @@ const Settings = lazy(() => import('@/pages/Settings'))
 const NotificationCenter = lazy(() => import('@/pages/NotificationCenter'))
 const ChildProfile = lazy(() => import('@/pages/ChildProfile'))
 const Roster = lazy(() => import('@/pages/Roster'))
+const Calendar = lazy(() => import('@/pages/Calendar'))
 const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
 const Board = lazy(() => import('@/pages/Board'))
 const Toolkit = lazy(() => import('@/pages/Toolkit'))
@@ -147,6 +148,7 @@ export default function App() {
             <Route path="/Rewards" element={<Rewards />} />
             <Route path="/Missions" element={<Missions />} />
             <Route path="/Family" element={<RequireParent><Family /></RequireParent>} />
+            <Route path="/Calendar" element={<RequireParent><Calendar /></RequireParent>} />
             <Route path="/Reports" element={<RequireParent><Reports /></RequireParent>} />
             <Route path="/TradingPost" element={<TradingPost />} />
             <Route path="/Settings" element={<Settings />} />

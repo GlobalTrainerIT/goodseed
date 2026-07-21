@@ -535,6 +535,25 @@ export function toggleAltarStep(familyId, stepId, byUserId = null, date = new Da
   return { doneCount: steps_done.length, completed: wasCompleted || nowComplete }
 }
 
+// A one-shot summary of a child's devotional progress across every faith
+// feature — powers the Faith Journey panel on their profile.
+export function faithStats(childId) {
+  const child = getById('users', childId)
+  const armor = armorProgress(childId)
+  return {
+    verses: getAll('memoryVerses').filter((m) => m.child_id === childId).length,
+    memoryStreak: memoryStreakWeeks(childId),
+    fruits: distinctFruitsEarned(childId),
+    fruitsTotal: 9,
+    armorInSuit: armor.inSuit,
+    armorSuits: armor.suitsCompleted,
+    gratitude: getAll('gratitude').filter((g) => g.child_id === childId).length,
+    gratitudeStreak: gratitudeStreakDays(childId),
+    altarWeeks: getAll('familyAltar').filter((a) => a.family_id === child?.family_id && a.completed).length,
+    totalEarned: child?.total_seeds_earned || 0,
+  }
+}
+
 function completeAltar(familyId, date = new Date()) {
   const reward = altarReward()
   const streak = altarStreakWeeks(familyId, date)

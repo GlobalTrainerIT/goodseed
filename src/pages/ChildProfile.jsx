@@ -12,6 +12,7 @@ import ActivityFeed from '@/components/family/ActivityFeed'
 import FruitGarden from '@/components/shared/FruitGarden'
 import GratitudeJar from '@/components/shared/GratitudeJar'
 import BibleJourney from '@/components/shared/BibleJourney'
+import FaithStats from '@/components/shared/FaithStats'
 import AwardSeedsDialog from '@/components/family/AwardSeedsDialog'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { useRecord, useCollection, useCurrentUser } from '@/lib/hooks'
@@ -80,6 +81,10 @@ export default function ChildProfile() {
           <div className="col-span-2 sm:col-span-1"><LevelProgress xp={child.xp || 0} /></div>
         </div>
       </Card>
+
+      <div className="mb-5">
+        <FaithStats childId={child.id} />
+      </div>
 
       <div className="mb-5">
         <BibleJourney childId={child.id} />

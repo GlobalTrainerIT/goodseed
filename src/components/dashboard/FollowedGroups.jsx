@@ -80,7 +80,14 @@ export default function FollowedGroups() {
 
 // A child's ONE permanent code — hand it to any coach/teacher, every season.
 function KidCodeRow({ kid }) {
-  const code = ensureKidCode(kid)
+  // Mint the code in an effect, never during render — writing to the store
+  // mid-render triggers a setState-in-render warning (updates App while
+  // rendering this row). The parent's useCollection re-renders us once the
+  // code lands on the kid record.
+  useEffect(() => {
+    if (kid && !kid.kid_code) ensureKidCode(kid)
+  }, [kid?.id, kid?.kid_code])
+  const code = kid?.kid_code
   if (!code) return null
   return (
     <div className="flex items-center gap-2 rounded-lg border border-gray-100 p-2 dark:border-gray-800">
