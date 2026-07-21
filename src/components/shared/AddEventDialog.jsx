@@ -9,7 +9,7 @@ import { toast } from '@/lib/toast'
 // Pass `event` to edit an existing one (adds Delete + saves in place); pass
 // `defaultDate` to seed the date when adding. Used by the dashboard agenda and
 // the month-grid Calendar page.
-export default function AddEventDialog({ open, familyId, event, defaultDate, onClose }) {
+export default function AddEventDialog({ open, familyId, event, defaultDate, occurrenceDate, onClose }) {
   const user = useCurrentUser()
   const editing = !!event
   const [title, setTitle] = useState('')
@@ -52,9 +52,20 @@ export default function AddEventDialog({ open, familyId, event, defaultDate, onC
 
   function del() {
     remove('announcements', event.id)
-    toast({ title: 'Event removed', emoji: '🗑️' })
+    toast({ title: editing && event.repeat === 'weekly' ? 'Series removed' : 'Event removed', emoji: '🗑️' })
     onClose()
   }
+
+  // Remove just the clicked day from a weekly series (an exception date).
+  function skipDay() {
+    const next = [...new Set([...(event.exceptions || []), occurrenceDate])]
+    update('announcements', event.id, { exceptions: next })
+    toast({ title: 'Removed for that day', message: 'The rest of the series is unchanged.', emoji: '🗑️' })
+    onClose()
+  }
+
+  const recurring = editing && event.repeat === 'weekly'
+  const canSkipDay = recurring && !!occurrenceDate
 
   return (
     <Dialog
@@ -65,9 +76,16 @@ export default function AddEventDialog({ open, familyId, event, defaultDate, onC
       footer={
         <>
           {editing && (
-            <Button variant="outline" onClick={del} className="mr-auto border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900">
-              Delete
-            </Button>
+            <div className="mr-auto flex flex-wrap gap-2">
+              {canSkipDay && (
+                <Button variant="outline" onClick={skipDay} className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900">
+                  Delete this day
+                </Button>
+              )}
+              <Button variant="outline" onClick={del} className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900">
+                {recurring ? 'Delete series' : 'Delete'}
+              </Button>
+            </div>
           )}
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={!title.trim() || !date}>{editing ? 'Save' : 'Add event'}</Button>

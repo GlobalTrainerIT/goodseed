@@ -178,9 +178,13 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    notes). **Event click-to-edit** also done: tapping an event on /Calendar or
    the dashboard agenda opens `AddEventDialog` in edit mode (update in place +
    Delete); recurrence occurrences resolve to their base record (via
-   `getById`) so edits/deletes apply to the whole series. Follow-ons:
-   drag-to-reschedule; surfacing meals/todos on the /Calendar page; per-occurrence
-   edits (currently series-level only).
+   `getById`) so edits/deletes apply to the whole series. **Per-occurrence
+   delete** done too: a recurring event's editor offers "Delete this day" (adds
+   the clicked date to an `exceptions[]` array on the record — `expandInRange`
+   skips those dates) vs "Delete series"; one-off events show a single "Delete".
+   Follow-ons: drag-to-reschedule; surfacing meals/todos on the /Calendar page;
+   per-occurrence *edits* / overrides (delete-one is done; edit-one still
+   series-level).
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,

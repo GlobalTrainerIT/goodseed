@@ -29,13 +29,15 @@ export function expandInRange(list, from, to) {
     const base = eventDate(a)
     if (!base) return
     if (a.repeat === 'weekly') {
+      const skip = new Set(a.exceptions || []) // 'YYYY-MM-DD' dates removed from the series
       let d = base
       if (isBefore(d, fromD)) {
         const weeks = Math.ceil(differenceInCalendarDays(fromD, d) / 7)
         d = addDays(base, weeks * 7)
       }
       while (!isAfter(d, toD)) {
-        if (!isBefore(d, fromD)) out.push({ ...a, event_date: format(d, 'yyyy-MM-dd'), _occurrence: true })
+        const key = format(d, 'yyyy-MM-dd')
+        if (!isBefore(d, fromD) && !skip.has(key)) out.push({ ...a, event_date: key, _occurrence: true })
         d = addDays(d, 7)
       }
     } else if (!isBefore(base, fromD) && !isAfter(base, toD)) {

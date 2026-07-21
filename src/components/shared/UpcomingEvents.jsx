@@ -16,11 +16,11 @@ export default function UpcomingEvents({ familyId, canAdd = false, days = 21 }) 
   const announcements = useCollection('announcements')
   const { followed, snapshots } = useFollowedData()
   const [adding, setAdding] = useState(false)
-  const [editEvent, setEditEvent] = useState(null)
+  const [editState, setEditState] = useState(null) // { record, occ }
 
   // Own events open the editor (occurrences resolve to their base record);
   // followed-group events are read-only.
-  const openEvent = (e) => setEditEvent(getById('announcements', e.id) || e)
+  const openEvent = (e) => setEditState({ record: getById('announcements', e.id) || e, occ: e.event_date })
 
   const own = announcements.filter((a) => a.family_id === familyId)
   const fromGroups = followed.flatMap((f) =>
@@ -68,7 +68,7 @@ export default function UpcomingEvents({ familyId, canAdd = false, days = 21 }) 
       )}
 
       <AddEventDialog open={adding} familyId={familyId} onClose={() => setAdding(false)} />
-      <AddEventDialog open={!!editEvent} familyId={familyId} event={editEvent} onClose={() => setEditEvent(null)} />
+      <AddEventDialog open={!!editState} familyId={familyId} event={editState?.record} occurrenceDate={editState?.occ} onClose={() => setEditState(null)} />
     </Card>
   )
 }

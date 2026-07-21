@@ -23,14 +23,14 @@ export default function Calendar() {
   const { followed, snapshots } = useFollowedData()
   const [monthAnchor, setMonthAnchor] = useState(() => startOfMonth(new Date()))
   const [addFor, setAddFor] = useState(null) // 'YYYY-MM-DD' when adding on a day
-  const [editEvent, setEditEvent] = useState(null) // base announcement record when editing
+  const [editState, setEditState] = useState(null) // { record, occ } when editing
 
   // Open the editor for one of our own events (external group events are
   // read-only). Recurrence occurrences resolve to their base record so edits
-  // apply to the whole series, not just one week.
+  // apply to the whole series; the clicked occurrence date enables "delete this day".
   function openEvent(ev) {
     if (ev._external || !canAdd) return
-    setEditEvent(getById('announcements', ev.id) || ev)
+    setEditState({ record: getById('announcements', ev.id) || ev, occ: ev.event_date })
   }
 
   if (!user) return null
@@ -118,7 +118,7 @@ export default function Calendar() {
       </Card>
 
       <AddEventDialog open={!!addFor} familyId={user.family_id} defaultDate={addFor} onClose={() => setAddFor(null)} />
-      <AddEventDialog open={!!editEvent} familyId={user.family_id} event={editEvent} onClose={() => setEditEvent(null)} />
+      <AddEventDialog open={!!editState} familyId={user.family_id} event={editState?.record} occurrenceDate={editState?.occ} onClose={() => setEditState(null)} />
     </div>
   )
 }
