@@ -4,7 +4,8 @@ import { Maximize, Minimize, X } from 'lucide-react'
 import Avatar from '@/components/shared/Avatar'
 import { useCurrentUser, useCollection, useRecord } from '@/lib/hooks'
 import { useRosterPhoto } from '@/lib/rosterPhotos'
-import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks } from '@/lib/domain'
+import { seedLabel, taskAppliesTo, latestCompletion, verseMemorizedThisWeek, armorProgress, distinctFruitsEarned, gratitudeRecent, altarProgress, altarStreakWeeks, mealText } from '@/lib/domain'
+import { todayKey } from '@/lib/meals'
 import { getVerseForWeek } from '@/lib/verses'
 import { levelRank } from '@/lib/faith'
 import { computeRollup, refreshFollowed, useFollowedData } from '@/lib/groupLink'
@@ -191,6 +192,7 @@ function FamilyBoard({ user, family }) {
   useCollection('fruitEarned') // subscribe so the fruit pill updates live
   useCollection('gratitude') // subscribe so the gratitude jar updates live
   useCollection('familyAltar') // subscribe so the altar line updates live
+  useCollection('meals') // subscribe so tonight's dinner updates live
   const ownAnnouncements = useCollection('announcements', (all) => all.filter((a) => a.family_id === user?.family_id))
   const { followed, snapshots } = useFollowedData() // re-render when linked-group snapshots arrive
   useEffect(() => { refreshFollowed() }, []) // pull school/sports totals for the rollup
@@ -203,6 +205,7 @@ function FamilyBoard({ user, family }) {
   const altarStreak = altarStreakWeeks(user?.family_id)
   const groupEvents = followed.flatMap((f) => (snapshots[f.code]?.announcements || []).map((a) => ({ ...a, group: snapshots[f.code]?.group_name || f.groupName })))
   const agenda = groupByDay(upcomingEvents([...ownAnnouncements, ...groupEvents], { days: 14 }))
+  const tonightDinner = mealText(user?.family_id, todayKey(), 'dinner')
 
   function tasksLeft(kidId) {
     const applies = tasks.filter((t) => taskAppliesTo(t, kidId))
@@ -287,6 +290,12 @@ function FamilyBoard({ user, family }) {
                 </span>
               )))}
             </div>
+          </div>
+        )}
+
+        {tonightDinner && (
+          <div className="mt-6 rounded-2xl bg-white/10 px-6 py-3 text-center backdrop-blur">
+            <p className="text-lg font-black sm:text-xl">🍽️ Tonight's dinner — {tonightDinner}</p>
           </div>
         )}
 

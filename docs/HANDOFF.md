@@ -109,6 +109,11 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   a "repeat weekly" box (family agenda + coach Board). New `/Calendar` page
   (`src/pages/Calendar.jsx`) — a month grid of family + followed-group events,
   parent-only, in PARENT_NAV; the Dashboard agenda links to it.
+- **Weekly meal plan** (Skylight lane): a per-week B/L/D planner (`src/lib/meals.js`
+  + `meals` collection, keyed by concrete date). `MealPlan` card on the Dashboard
+  (parents type into inline slots; blank clears the slot); read-only elsewhere;
+  "🍽️ Tonight's dinner" line on the kitchen board. Settings: enable toggle.
+  Logic in `domain.js` (`setMeal`/`mealText`/`mealsForDate`).
 - **Faith Journey stats panel**: `FaithStats` card on ChildProfile aggregates
   verses/armor/fruits/gratitude/journey/altar (helper `faithStats` in domain);
   tiles respect each feature's enable setting.
@@ -146,8 +151,9 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
    (weekly) events, and a month-grid `/Calendar`. **DEPLOY PENDING**: the
    `group-link` edge fn source now returns `event_date`/`event_time`, but it must
    be deployed to Supabase (matching its current `verify_jwt=false`) for coach
-   events to reach families cross-family — see the spawned task. Follow-ons: a
-   meal-plan / shared to-do lane; month-view event click-to-edit.
+   events to reach families cross-family — see the spawned task. Meal-plan lane
+   now BUILT (see Major systems). Follow-ons: a shared to-do / chore lane on the
+   command-center; month-view event click-to-edit; drag-to-reschedule.
 
 ## Open decisions / known gaps (tell a new session)
 - **Solo teacher-seat pricing** vs free ClassDojo: leaning free/freemium solo,

@@ -315,6 +315,7 @@ export function seedData() {
     journeyEnabled: true,
     altarEnabled: true,
     altarReward: 5,
+    mealsEnabled: true,
     parentPin: '',
     parentPinEnabled: false,
     lastMaintenanceDay: null,
@@ -346,6 +347,7 @@ export function seedData() {
     fruitEarned: [],
     gratitude: [],
     familyAltar: [],
+    meals: [],
     settings,
   }
 }

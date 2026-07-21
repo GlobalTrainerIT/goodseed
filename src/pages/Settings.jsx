@@ -343,6 +343,9 @@ export default function Settings() {
               <Row title="Enable Seed Packs" desc="Children earn packs every 10 tasks or at streak milestones.">
                 <Toggle checked={settings.enableSeedPacks} onChange={(v) => updateSettings({ enableSeedPacks: v })} />
               </Row>
+              <Row title="Weekly meal plan" desc="Plan the week's meals on the dashboard; tonight's dinner shows on the kitchen board.">
+                <Toggle checked={settings.mealsEnabled !== false} onChange={(v) => updateSettings({ mealsEnabled: v })} />
+              </Row>
               <Row title="Currency name" desc="Rename your family currency.">
                 <Select
                   className="w-36"

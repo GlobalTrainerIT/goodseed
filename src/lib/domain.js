@@ -554,6 +554,44 @@ export function faithStats(childId) {
   }
 }
 
+// ---------------------------------------------------------------- meal plan
+// A weekly family meal plan: one short line per (day, meal type). Records live
+// in the `meals` collection keyed by a concrete date so the plan rolls with the
+// calendar. Setting a slot to empty removes it.
+
+export function mealsEnabled() {
+  return getSettings().mealsEnabled !== false
+}
+
+function mealRecord(familyId, date, type) {
+  return getAll('meals').find((m) => m.family_id === familyId && m.day_key === date && m.meal_type === type) || null
+}
+
+export function mealText(familyId, date, type) {
+  return mealRecord(familyId, date, type)?.text || ''
+}
+
+/** All meals for a family on one date, as { breakfast, lunch, dinner }. */
+export function mealsForDate(familyId, date) {
+  const out = {}
+  getAll('meals')
+    .filter((m) => m.family_id === familyId && m.day_key === date)
+    .forEach((m) => { out[m.meal_type] = m.text })
+  return out
+}
+
+/** Set (or clear, when text is blank) one meal slot. */
+export function setMeal(familyId, date, type, text, byUserId = null) {
+  const t = String(text || '').trim().slice(0, 80)
+  const rec = mealRecord(familyId, date, type)
+  if (!t) {
+    if (rec) remove('meals', rec.id)
+    return
+  }
+  if (rec) update('meals', rec.id, { text: t })
+  else create('meals', { family_id: familyId, day_key: date, meal_type: type, text: t, created_by: byUserId })
+}
+
 function completeAltar(familyId, date = new Date()) {
   const reward = altarReward()
   const streak = altarStreakWeeks(familyId, date)

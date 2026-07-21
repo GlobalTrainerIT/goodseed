@@ -34,6 +34,7 @@ export const COLLECTIONS = [
   'fruitEarned',
   'gratitude',
   'familyAltar',
+  'meals',
 ]
 
 const state = {}
