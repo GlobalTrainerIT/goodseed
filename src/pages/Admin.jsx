@@ -187,11 +187,23 @@ export default function Admin() {
               try { await adminCall(key, { action: 'revoke_org', org_id: org.id }); await refresh() }
               catch (e) { setError(String(e.message || e)); setBusy(false) }
             }}
+            families={data.families || []}
             onInvoice={async (org, opts) => {
               const r = await orgInvoiceCall(key, { action: 'create_invoice', org_id: org.id, contact_email: opts.email, children: opts.children, period: opts.period })
               await refresh()
               return r
             }}
+            onSetSeats={async (org, seats) => {
+              const r = await orgInvoiceCall(key, { action: 'set_seats', org_id: org.id, student_seats: seats })
+              await refresh()
+              return r
+            }}
+            onSubscribe={async (org, opts) => {
+              const r = await orgInvoiceCall(key, { action: 'create_subscription_link', org_id: org.id, contact_email: opts.email, period: opts.period, student_seats: opts.seats })
+              await refresh()
+              return r
+            }}
+            onSetupPrices={async () => orgInvoiceCall(key, { action: 'setup_prices' })}
           />
         </Section>
 
@@ -238,12 +250,25 @@ export default function Admin() {
 
 // Organizations: an invoiced church/school/YMCA deal. You create it here, hand
 // the code to their administrator, and every leader who enters it is covered.
-function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
+function OrgTable({ orgs, families = [], onCreate, onRevoke, onInvoice, onSetSeats, onSubscribe, onSetupPrices }) {
   const [name, setName] = useState('')
   const [days, setDays] = useState('365')
   const [cap, setCap] = useState('')
   const [newCode, setNewCode] = useState(null)
-  const [billing, setBilling] = useState(null) // org being invoiced
+  const [billing, setBilling] = useState(null) // org being billed
+  const [prices, setPrices] = useState(null)
+  const [priceBusy, setPriceBusy] = useState(false)
+
+  // Seats actually in use = kids across every group this org covers.
+  const seatsUsed = (orgId) =>
+    families.filter((f) => f.sub?.org_id === orgId).reduce((sum, f) => sum + (f.kids || 0), 0)
+
+  async function setupPrices() {
+    setPriceBusy(true)
+    try { setPrices(await onSetupPrices()) }
+    catch (e) { toast({ title: 'Price setup failed', message: String(e.message || e), type: 'error' }) }
+    setPriceBusy(false)
+  }
 
   async function create() {
     if (!name.trim()) return
@@ -268,6 +293,19 @@ function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
             <Input type="number" value={cap} onChange={(e) => setCap(e.target.value)} placeholder="∞" />
           </div>
           <Button onClick={create} disabled={!name.trim()}><Plus className="h-4 w-4" /> Create org</Button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+          <Button size="sm" variant="secondary" onClick={setupPrices} disabled={priceBusy}>
+            {priceBusy ? 'Setting up…' : '⚙️ Set up billing prices'}
+          </Button>
+          <span className="text-xs text-gray-400">
+            One-time: creates the $2/child/mo + $20/child/yr recurring prices in Stripe (needed for auto-billing).
+          </span>
+          {prices && (
+            <span className="w-full text-xs font-mono text-seed-700 dark:text-seed-400">
+              {prices.reused ? 'already configured — ' : 'created — '}monthly {prices.monthly} · annual {prices.annual}
+            </span>
+          )}
         </div>
         {newCode && (
           <div className="mt-3 space-y-2 rounded-xl border-2 border-seed-500 bg-seed-50 p-3 dark:bg-seed-900/30">
@@ -298,6 +336,7 @@ function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
                 <th className="px-4 py-2.5">Organization</th>
                 <th className="px-4 py-2.5">Code</th>
                 <th className="px-4 py-2.5">Groups</th>
+                <th className="px-4 py-2.5">Seats</th>
                 <th className="px-4 py-2.5">Status</th>
                 <th className="px-4 py-2.5">Renews</th>
                 <th className="px-4 py-2.5 text-right">Actions</th>
@@ -315,6 +354,22 @@ function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
                   </td>
                   <td className="px-4 py-2.5">{o.groups_covered}{o.group_cap ? ` / ${o.group_cap}` : ''}</td>
                   <td className="px-4 py-2.5">
+                    {o.student_seats ? (
+                      (() => {
+                        const used = seatsUsed(o.id)
+                        const pct = used / o.student_seats
+                        return (
+                          <span className={pct >= 1 ? 'font-bold text-red-600 dark:text-red-400' : pct >= 0.9 ? 'font-bold text-amber-600 dark:text-amber-400' : ''}>
+                            {used} / {o.student_seats}
+                            {pct >= 1 ? ' — full' : pct >= 0.9 ? ' — near cap' : ''}
+                          </span>
+                        )
+                      })()
+                    ) : (
+                      <span className="text-gray-400">{seatsUsed(o.id)} / —</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
                     {o.revoked ? <Badge variant="gray">ended</Badge>
                       : o.expired ? <Badge className="bg-red-100 text-red-700">expired</Badge>
                       : <Badge variant="green">active</Badge>}
@@ -331,7 +386,7 @@ function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
                     <div className="flex justify-end gap-1.5">
                       {!o.revoked && (
                         <Button size="sm" variant="secondary" onClick={() => setBilling(o)}>
-                          💳 Bill
+                          💳 Billing
                         </Button>
                       )}
                       {!o.revoked && (
@@ -348,79 +403,114 @@ function OrgTable({ orgs, onCreate, onRevoke, onInvoice }) {
         </Card>
       )}
 
-      <BillOrgDialog org={billing} onInvoice={onInvoice} onClose={() => setBilling(null)} />
+      <BillOrgDialog org={billing} onInvoice={onInvoice} onSetSeats={onSetSeats} onSubscribe={onSubscribe} onClose={() => setBilling(null)} />
     </>
   )
 }
 
-// Create a Stripe (ACH-enabled) invoice for an organization. Pricing is fixed
-// server-side ($2/child/mo, $20/child/yr); this just collects who/how-many.
-function BillOrgDialog({ org, onInvoice, onClose }) {
+// Organization billing. Two ways to get paid, both ACH-capable:
+//   • Auto-billing — a Stripe subscription link the org authorizes once (ACH
+//     mandate), then it renews itself. Preferred.
+//   • One-off invoice — for schools that must run a PO / net-30 through AP.
+// Pricing is fixed server-side ($2/child/mo, $20/child/yr); this collects the
+// contracted seat count and who to bill.
+function BillOrgDialog({ org, onInvoice, onSetSeats, onSubscribe, onClose }) {
   const [email, setEmail] = useState('')
-  const [children, setChildren] = useState('')
+  const [seats, setSeats] = useState('')
   const [period, setPeriod] = useState('annual')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState('')
   const [result, setResult] = useState(null)
   const [err, setErr] = useState('')
 
   useEffect(() => {
-    if (org) { setEmail(org.contact_email || ''); setChildren(String(org.billing?.children || '')); setPeriod(org.billing?.period || 'annual'); setResult(null); setErr('') }
+    if (org) {
+      setEmail(org.contact_email || '')
+      setSeats(String(org.student_seats || org.billing?.children || ''))
+      setPeriod(org.billing?.period || 'annual')
+      setResult(null); setErr('')
+    }
   }, [org])
 
   if (!org) return null
-  const n = Math.max(0, parseInt(children, 10) || 0)
+  const n = Math.max(0, parseInt(seats, 10) || 0)
   const rate = period === 'annual' ? 20 : 2
   const total = n * rate
+  const ready = email.includes('@') && n >= 1
 
-  async function submit() {
-    setErr(''); setBusy(true)
+  async function run(kind) {
+    setErr(''); setBusy(kind)
     try {
-      const r = await onInvoice(org, { email: email.trim(), children: n, period })
-      setResult(r)
+      // Always persist the contracted seat count first — it drives the seat
+      // usage warnings in this console and the org's own dashboard.
+      if (n !== (org.student_seats || 0)) await onSetSeats(org, n)
+      const r = kind === 'subscribe'
+        ? await onSubscribe(org, { email: email.trim(), period, seats: n })
+        : await onInvoice(org, { email: email.trim(), children: n, period })
+      setResult({ kind, ...r })
     } catch (e) { setErr(String(e.message || e)) }
-    setBusy(false)
+    setBusy('')
   }
 
   return (
     <Dialog
       open={!!org}
       onClose={onClose}
-      title={`Invoice ${org.name}`}
-      description="Creates a Stripe invoice payable by ACH (or card). Test-mode until you set a live key."
+      title={`Billing — ${org.name}`}
+      description="Test-mode until you swap STRIPE_INVOICE_SECRET_KEY to a live key."
       footer={
         result ? <Button onClick={onClose}>Done</Button> : (
           <>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={submit} disabled={busy || !email.includes('@') || n < 1}>{busy ? 'Creating…' : `Create invoice · $${total}`}</Button>
+            <Button variant="secondary" onClick={() => run('invoice')} disabled={!!busy || !ready}>
+              {busy === 'invoice' ? 'Creating…' : 'One-off invoice'}
+            </Button>
+            <Button onClick={() => run('subscribe')} disabled={!!busy || !ready}>
+              {busy === 'subscribe' ? 'Creating…' : `Auto-bill · $${total}/${period === 'annual' ? 'yr' : 'mo'}`}
+            </Button>
           </>
         )
       }
     >
       {result ? (
         <div className="space-y-3">
-          <p className={`rounded-lg p-3 text-sm ${result.mismatch ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-seed-50 text-seed-800 dark:bg-seed-900/30 dark:text-seed-200'}`}>
-            {result.mismatch ? (
-              <>⚠️ Stripe billed <b>${((result.amount_due ?? 0) / 100).toFixed(2)}</b> but this should be <b>${(result.amount / 100).toFixed(2)}</b> — don't send this one.</>
-            ) : (
-              <>✅ Invoice created ({result.status}) for <b>${((result.amount_due ?? result.amount) / 100).toFixed(2)}</b>.</>
-            )}
-          </p>
-          {result.hosted_invoice_url && (
-            <a href={result.hosted_invoice_url} target="_blank" rel="noreferrer" className="block rounded-lg border border-gray-200 p-3 text-sm font-semibold text-seed-700 hover:bg-gray-50 dark:border-gray-800 dark:text-seed-400">
-              Open hosted invoice ↗
-            </a>
+          {result.kind === 'subscribe' ? (
+            <>
+              <p className="rounded-lg bg-seed-50 p-3 text-sm text-seed-800 dark:bg-seed-900/30 dark:text-seed-200">
+                ✅ Subscription link ready — <b>{result.seats} seats</b>, ${(result.amount / 100).toFixed(2)}/{result.period === 'annual' ? 'year' : 'month'}.
+                Send it to the org; once they authorize the bank debit it renews automatically.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={() => { navigator.clipboard?.writeText(result.url); toast({ title: 'Link copied', emoji: '📋' }) }}>Copy link</Button>
+                <a href={result.url} target="_blank" rel="noreferrer" className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-center text-sm font-semibold text-seed-700 hover:bg-gray-50 dark:border-gray-800 dark:text-seed-400">Preview ↗</a>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className={`rounded-lg p-3 text-sm ${result.mismatch ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-seed-50 text-seed-800 dark:bg-seed-900/30 dark:text-seed-200'}`}>
+                {result.mismatch ? (
+                  <>⚠️ Stripe billed <b>${((result.amount_due ?? 0) / 100).toFixed(2)}</b> but this should be <b>${(result.amount / 100).toFixed(2)}</b> — don't send this one.</>
+                ) : (
+                  <>✅ Invoice created ({result.status}) for <b>${((result.amount_due ?? result.amount) / 100).toFixed(2)}</b>.</>
+                )}
+              </p>
+              {result.hosted_invoice_url && (
+                <a href={result.hosted_invoice_url} target="_blank" rel="noreferrer" className="block rounded-lg border border-gray-200 p-3 text-sm font-semibold text-seed-700 hover:bg-gray-50 dark:border-gray-800 dark:text-seed-400">
+                  Open hosted invoice ↗
+                </a>
+              )}
+            </>
           )}
         </div>
       ) : (
         <div className="space-y-3">
           <div>
             <Label>Billing email</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@church.org" />
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@school.org" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Number of children</Label>
-              <Input type="number" min="1" value={children} onChange={(e) => setChildren(e.target.value)} placeholder="e.g. 80" />
+              <Label>Student seats (contracted)</Label>
+              <Input type="number" min="1" value={seats} onChange={(e) => setSeats(e.target.value)} placeholder="e.g. 400" />
             </div>
             <div>
               <Label>Billing period</Label>
@@ -432,7 +522,11 @@ function BillOrgDialog({ org, onInvoice, onClose }) {
             </div>
           </div>
           <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            {n > 0 ? <>{n} children × ${rate}/{period === 'annual' ? 'year' : 'month'} = <b>${total}</b>{period === 'annual' ? ' (2 months free)' : ''}</> : 'Enter a child count to see the total.'}
+            {n > 0 ? <>{n} seats × ${rate}/{period === 'annual' ? 'year' : 'month'} = <b>${total}</b>{period === 'annual' ? ' (2 months free)' : ''} · all leaders included</> : 'Enter a seat count to see the total.'}
+          </p>
+          <p className="text-xs text-gray-400">
+            <b>Auto-bill</b> creates a link the org authorizes once (ACH) and then renews itself — use this by default.
+            <b> One-off invoice</b> is for schools that need a PO / net-30.
           </p>
           {err && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-300">{err}</p>}
         </div>
