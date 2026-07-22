@@ -170,14 +170,15 @@ Deno.serve(async (req) => {
     } catch { /* try the next secret */ }
   }
   if (!event) {
-    // Diagnostic only — never logs the secrets themselves, just whether each is
-    // configured, so a 400 distinguishes "secret missing" from "secret wrong".
-    console.error('sig verify failed', JSON.stringify({
+    // The 400 body reports which secrets are CONFIGURED (never their values), so
+    // a rejected delivery distinguishes "secret missing" from "secret wrong"
+    // without needing log access. Stripe ignores the body; only we read it.
+    return new Response(JSON.stringify({
+      error: 'signature verification failed',
       live_secret_set: !!Deno.env.get('STRIPE_WEBHOOK_SECRET'),
       test_secret_set: !!Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST'),
-      sig_present: !!sig,
-    }))
-    return new Response('Webhook Error: signature verification failed', { status: 400 })
+      signature_header_present: !!sig,
+    }), { status: 400, headers: { 'Content-Type': 'application/json' } })
   }
 
   // Objects from a test event only exist under the test key, and vice versa.
