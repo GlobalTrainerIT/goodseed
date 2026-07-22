@@ -169,7 +169,16 @@ Deno.serve(async (req) => {
       break
     } catch { /* try the next secret */ }
   }
-  if (!event) return new Response('Webhook Error: signature verification failed', { status: 400 })
+  if (!event) {
+    // Diagnostic only — never logs the secrets themselves, just whether each is
+    // configured, so a 400 distinguishes "secret missing" from "secret wrong".
+    console.error('sig verify failed', JSON.stringify({
+      live_secret_set: !!Deno.env.get('STRIPE_WEBHOOK_SECRET'),
+      test_secret_set: !!Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST'),
+      sig_present: !!sig,
+    }))
+    return new Response('Webhook Error: signature verification failed', { status: 400 })
+  }
 
   // Objects from a test event only exist under the test key, and vice versa.
   const api = event.livemode ? stripeLive : (stripeTest ?? stripeLive)
