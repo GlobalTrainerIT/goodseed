@@ -70,6 +70,26 @@ I cannot push). Supabase project ref: `jedqarsyvrpicvlztyrm`.
   client from `event.livemode`) because org billing is on a test key while
   Plus/Teams is live. **SETUP**: register the same webhook URL as an endpoint in
   Stripe TEST mode and put its signing secret in `STRIPE_WEBHOOK_SECRET_TEST`.
+  VERIFIED end-to-end July 2026: test invoice → ACH paid → `invoice.paid` → 200 →
+  `active_until` extended by a year. The SUBSCRIPTION path (`create_subscription_
+  link` → ACH mandate → recurring auto-debit) is still UNPROVEN — only one-off
+  invoices have been exercised.
+  ⚠️ **Debugging a webhook that never lands.** Symptom → cause, in the order they
+  actually bit us:
+  1. Zero requests in the edge-function logs → no endpoint is registered for that
+     MODE. Live and test each need their own endpoint.
+  2. Requests arriving as 400 → signature verification failed. The secret is
+     missing or belongs to a different endpoint.
+  3. **Check the Stripe ACCOUNT, not just the mode.** Every Stripe object id
+     carries an account-scoped segment: GoodSeed is `C3XE1lnObG`
+     (`price_1TvoQlC3XE1lnObGKhoPTU02`). An id with a different segment was made
+     in another account entirely and its signing secret will never verify here.
+     Sandboxes are a separate trap on top of this — a Sandbox is its own isolated
+     environment with its own keys, and is NOT the same as test mode.
+  To tell "secret missing" from "secret wrong", temporarily return
+  `!!Deno.env.get(...)` (and the filtered `Deno.env.toObject()` KEY names, never
+  values) from the 400 branch, probe it with curl, then remove it — the 400 is
+  reachable by any caller. See git history around July 2026 for the exact patch.
 - **Billing**: Stripe live. create-checkout (plans: plus, teams_monthly
   price_1Ttg1ZC3XE1lnObG71CATYSX, teams_yearly price_1Ttp2ZC3XE1lnObGwWOxIN0e),
   stripe-webhook, create-portal. Old $99 price retired but still mapped.
