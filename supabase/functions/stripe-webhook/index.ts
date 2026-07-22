@@ -178,6 +178,9 @@ Deno.serve(async (req) => {
       live_secret_set: !!Deno.env.get('STRIPE_WEBHOOK_SECRET'),
       test_secret_set: !!Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST'),
       signature_header_present: !!sig,
+      // Names only. A misspelled or differently-named secret is otherwise
+      // indistinguishable from one that was never saved.
+      stripe_env_names: Object.keys(Deno.env.toObject()).filter((k) => k.includes('STRIPE')).sort(),
     }), { status: 400, headers: { 'Content-Type': 'application/json' } })
   }
 
