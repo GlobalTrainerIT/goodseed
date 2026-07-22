@@ -115,6 +115,37 @@ async function applyOrgSubscription(sub: any): Promise<boolean> {
   return true
 }
 
+/**
+ * A STANDALONE org invoice was paid (the PO / net-30 path — no subscription
+ * attached). Extend coverage by the billed period. Without this, a school that
+ * pays by invoice would never have its access extended.
+ */
+async function extendOrgFromInvoice(orgId: string, invoice: any) {
+  const { data: org } = await supabase
+    .from('organizations').select('billing, active_until').eq('id', orgId).maybeSingle()
+  if (!org) return
+
+  const period = invoice?.metadata?.period === 'monthly' ? 'monthly' : 'annual'
+  // Stack onto remaining coverage rather than truncating it.
+  const now = new Date()
+  const base = org.active_until && new Date(org.active_until) > now ? new Date(org.active_until) : now
+  const end = new Date(base)
+  if (period === 'monthly') end.setMonth(end.getMonth() + 1)
+  else end.setFullYear(end.getFullYear() + 1)
+
+  await supabase.from('organizations').update({
+    active_until: end.toISOString(),
+    billing: {
+      ...(org.billing || {}),
+      last_invoice_id: invoice?.id ?? null,
+      last_status: 'paid',
+      last_invoice_paid_at: now.toISOString(),
+      paid_through: end.toISOString(),
+      updated_at: now.toISOString(),
+    },
+  }).eq('id', orgId)
+}
+
 async function applySubscription(sub: any, fallbackFamilyId?: string) {
   // Organizations first — their subscriptions carry org_id, not family_id.
   if (await applyOrgSubscription(sub)) return
@@ -169,6 +200,15 @@ Deno.serve(async (req) => {
           obj.subscription ||
           obj.parent?.subscription_details?.subscription ||
           obj.lines?.data?.[0]?.subscription
+
+        // A standalone ORG invoice (PO / net-30) has no subscription — extend
+        // that org's coverage directly. ACH settles days after the invoice is
+        // "paid" from the payer's view, so this is when access should start.
+        if (!subId && event.type === 'invoice.paid' && obj.metadata?.org_id) {
+          await extendOrgFromInvoice(obj.metadata.org_id, obj)
+          break
+        }
+
         if (subId) {
           const sub = await api.subscriptions.retrieve(
             typeof subId === 'string' ? subId : subId.id
