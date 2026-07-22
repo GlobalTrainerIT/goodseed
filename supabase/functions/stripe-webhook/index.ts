@@ -125,6 +125,16 @@ async function extendOrgFromInvoice(orgId: string, invoice: any) {
     .from('organizations').select('billing, active_until').eq('id', orgId).maybeSingle()
   if (!org) return
 
+  // IDEMPOTENCY. Stripe delivers at-least-once: retries, and manual resends from
+  // the dashboard, mean the same invoice.paid arrives more than once. Without
+  // this guard each redelivery stacks another period, so a school that paid once
+  // could collect years of free coverage. Unlike applyOrgSubscription (which
+  // SETS paid_through from the subscription and is naturally idempotent), this
+  // path ADDS to a running total, so it must dedupe on the invoice id.
+  const invoiceId = String(invoice?.id ?? '')
+  const processed: string[] = (org.billing || {}).processed_invoice_ids || []
+  if (invoiceId && processed.includes(invoiceId)) return
+
   const period = invoice?.metadata?.period === 'monthly' ? 'monthly' : 'annual'
   // Stack onto remaining coverage rather than truncating it.
   const now = new Date()
@@ -142,6 +152,9 @@ async function extendOrgFromInvoice(orgId: string, invoice: any) {
       last_invoice_paid_at: now.toISOString(),
       paid_through: end.toISOString(),
       updated_at: now.toISOString(),
+      // Keep the tail only — this is a replay guard, not an audit log (Stripe
+      // holds that). Bounded so the jsonb can't grow without limit.
+      processed_invoice_ids: [...processed, invoiceId].filter(Boolean).slice(-50),
     },
   }).eq('id', orgId)
 }
